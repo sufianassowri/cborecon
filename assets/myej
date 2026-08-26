@@ -1,0 +1,227 @@
+------------08/25/24 13:47:05-------------
+DATE:08/25/24        TIME:13:47:04
+BRANCH:0000000000000 MACHINE NO:00CHRC1037
+IN-SERVICE
+
+   IN-SERVICE OK
+**CARD FILE CREATED   0479 08/25/24 13:47
+**ACTIVE FUNCTION          08/25/24 13:47
+  CASH-IN       CASH-OUT
+------------08/25/24 13:47:07-------------
+============STATUS INFORMATION============
+DATE:08/25/24        TIME:13:47:06
+  CASH-IN ACTIVE   : CASH-OUT ACTIVE
+  CST.1(RB-INOUT ) : ETB 200      : 1207
+        OK
+  CST.2(RB-INOUT ) : ETB 100      : 2871
+        OK
+  CST.3(RB-INOUT ) : ETB 50       : 0807
+        OK
+  CST.4(AB-ALL   ) : ETB 200      : 0012
+        OK           ETB 100      : 0000
+                     ETB 50       : 0000
+                     VOID         : 0000
+  CST.5(RB-INOUT ) : ETB 200      : 0523
+        OK
+  URJB :EMPTY        ETB 200      : 0000
+                     ETB 100      : 0000
+                     ETB 50       : 0000
+                     VOID         : 0000
+  RPR  : ENABLED  : OK
+
+  CARD(MOTOR) : ENABLED  : OK
+
+==========================================
+------------08/25/24 13:53:36-------------
+============TRANSACTION START=============
+13:53:36 CARD:;957209XXXXXX3879?
+13:53:36 CAMERA  1 P20240825135336441.JPG
+13:53:40 ATR RECEIVED T=0
+13:53:40 AID=A0000000032010
+13:53:42 CARD:;957209XXXXXX3879?
+13:53:47 PIN ENTERED
+13:53:50 AMOUNT/INFORMATION FDK H PRESSED
+13:53:53 1st GenAC:P1 = 80[ARQC]
+13:53:53 TNX REQUEST, OPCODE: AAAD   B
+13:53:55 TNX REPLY, NEXT: 080, FUNCID: A
+13:53:56 2nd GenAC:P1 = 40[TC]
+13:53:59 CARD TAKEN BY CUSTOMER
+13:53:59 CAMERA  2 P20240825135359499.JPG
+------------08/25/24 13:54:05-------------
+24/08/25 24/08/25 13:54 1037 2886 011000
+0009572********3879          200.00  230
+AUTHNUM:   789097
+RESPCODE:   000
+13:54:05 DISPENSE
+         ETB200   -001
+13:54:05 NOTES PRESENT AT CASH SLOT
+13:54:06 CAMERA  3 P20240825135405499.JPG
+13:54:06 CASH SHUTTER OPENED
+13:54:09 NOTES TAKEN BY CUSTOMER
+13:54:09 CAMERA  3 P20240825135409381.JPG
+------------08/25/24 13:54:13-------------
+13:54:13 CASH SHUTTER CLOSED
+13:54:13 CAMERA2 32 E20240825135406269.MPG
+------------08/25/24 13:54:16-------------
+============STATUS INFORMATION============
+DATE:08/25/24        TIME:13:54:16
+  CASH-IN ACTIVE   : CASH-OUT ACTIVE
+  CST.1(RB-INOUT ) : ETB 200      : 1206
+        OK
+  CST.2(RB-INOUT ) : ETB 100      : 2871
+        OK
+  CST.3(RB-INOUT ) : ETB 50       : 0807
+        OK
+  CST.4(AB-ALL   ) : ETB 200      : 0012
+        OK           ETB 100      : 0000
+                     ETB 50       : 0000
+                     VOID         : 0000
+  CST.5(RB-INOUT ) : ETB 200      : 0523
+        OK
+  URJB :EMPTY        ETB 200      : 0000
+                     ETB 100      : 0000
+                     ETB 50       : 0000
+                     VOID         : 0000
+  RPR  : ENABLED  : OK
+
+  CARD(MOTOR) : ENABLED  : OK
+
+==========================================
+------------08/25/24 13:58:29-------------
+============TRANSACTION START=============
+13:58:29 CARD:;458300XXXXXX2315?
+13:58:30 CAMERA  1 P20240825135829973.JPG
+13:58:35 ATR RECEIVED T=0
+13:58:36 AID=A0000000031010
+13:58:38 CARD:;458300XXXXXX2315?
+13:58:45 PIN ENTERED
+13:58:48 AMOUNT/INFORMATION FDK F PRESSED
+13:58:52 1st GenAC:P1 = 80[ARQC]
+13:58:52 TNX REQUEST, OPCODE: AAAF   A
+13:58:53 TNX REPLY, NEXT: 080, FUNCID: A
+13:58:54 2nd GenAC:P1 = 40[TC]
+13:58:57 CARD TAKEN BY CUSTOMER
+13:58:57 CAMERA  2 P20240825135857220.JPG
+------------08/25/24 13:59:04-------------
+24/08/25 24/08/25 13:59 1037 2887 011000
+0004583********2315          500.00  230
+AUTHNUM:   503701
+RESPCODE:   000
+13:59:04 DISPENSE
+         ETB200   -002
+         ETB100   -001
+13:59:04 NOTES PRESENT AT CASH SLOT
+13:59:04 CAMERA  3 P20240825135904210.JPG
+13:59:04 CASH SHUTTER OPENED
+13:59:09 NOTES TAKEN BY CUSTOMER
+13:59:09 CAMERA  3 P20240825135909092.JPG
+------------08/25/24 13:59:13-------------
+13:59:12 CASH SHUTTER CLOSED
+13:59:13 CAMERA2 31 E20240825135904727.MPG
+------------08/25/24 13:59:16-------------
+============STATUS INFORMATION============
+DATE:08/25/24        TIME:13:59:16
+  CASH-IN ACTIVE   : CASH-OUT ACTIVE
+  CST.1(RB-INOUT ) : ETB 200      : 1204
+        OK
+  CST.2(RB-INOUT ) : ETB 100      : 2870
+        OK
+  CST.3(RB-INOUT ) : ETB 50       : 0807
+        OK
+  CST.4(AB-ALL   ) : ETB 200      : 0012
+        OK           ETB 100      : 0000
+                     ETB 50       : 0000
+                     VOID         : 0000
+  CST.5(RB-INOUT ) : ETB 200      : 0523
+        OK
+  URJB :EMPTY        ETB 200      : 0000
+                     ETB 100      : 0000
+                     ETB 50       : 0000
+                     VOID         : 0000
+  RPR  : ENABLED  : OK
+
+  CARD(MOTOR) : ENABLED  : OK
+
+==========================================
+------------08/25/24 14:00:26-------------
+============TRANSACTION START=============
+14:00:26 CARD:;923140XXXXXX0130335?
+14:00:26 CAMERA  1 P20240825140026252.JPG
+14:00:31 ATR RECEIVED T=0
+14:00:32 AID=D231CBE00001
+14:00:33 CARD:;923140XXXXXX0130335?
+14:00:39 PIN ENTERED
+14:00:42 AMOUNT/INFORMATION FDK D PRESSED
+14:00:55 AMOUNT 000000007000 ENTERED
+14:00:59 1st GenAC:P1 = 80[ARQC]
+14:00:59 TNX REQUEST, OPCODE: AAAF   B
+14:01:01 2nd GenAC:P1 = 00[AAC]
+14:01:03 COMMAND REJECT : B11
+------------08/25/24 14:01:03-------------
+38857510
+**ERROR DESC 38857510      08/25/24 14:01
+  RECEIVE MESSAGE DATA FORMAT ERROR
+------------08/25/24 14:01:04-------------
+DATE:08/25/24        TIME:14:01:04
+BRANCH:0000000000000 MACHINE NO:00CHRC1037
+TROUBLE
+
+  SORRY,
+  MACHINE IS OUT OF SERVICE.
+
+  PLEASE CONTACT BRANCH MANAGER.
+
+  TEL: 000000000000609
+------------08/25/24 14:01:09-------------
+14:01:09 CARD TAKEN BY CUSTOMER
+14:01:10 CAMERA  2 P20240825140109288.JPG
+**RESET                    08/25/24 14:01
+------------08/25/24 14:01:41-------------
+DATE:08/25/24        TIME:14:01:41
+BRANCH:0000000000000 MACHINE NO:00CHRC1037
+IN-SERVICE
+
+   IN-SERVICE OK
+------------08/25/24 14:01:43-------------
+DATE:08/25/24        TIME:14:01:43
+BRANCH:0000000000000 MACHINE NO:00CHRC1037
+OUT-OF-SERVICE
+
+**EX PINKEY UPDATE         08/25/24 14:02
+**RESET         C          08/25/24 14:02
+------------08/25/24 14:02:05-------------
+DATE:08/25/24        TIME:14:02:04
+BRANCH:0000000000000 MACHINE NO:00CHRC1037
+IN-SERVICE
+
+   IN-SERVICE OK
+**CARD FILE CREATED   0479 08/25/24 14:02
+**ACTIVE FUNCTION          08/25/24 14:02
+  CASH-IN       CASH-OUT
+------------08/25/24 14:02:07-------------
+============STATUS INFORMATION============
+DATE:08/25/24        TIME:14:02:07
+  CASH-IN ACTIVE   : CASH-OUT ACTIVE
+  CST.1(RB-INOUT ) : ETB 200      : 1204
+        OK
+  CST.2(RB-INOUT ) : ETB 100      : 2870
+        OK
+  CST.3(RB-INOUT ) : ETB 50       : 0807
+        OK
+  CST.4(AB-ALL   ) : ETB 200      : 0012
+        OK           ETB 100      : 0000
+                     ETB 50       : 0000
+                     VOID         : 0000
+  CST.5(RB-INOUT ) : ETB 200      : 0523
+        OK
+  URJB :EMPTY        ETB 200      : 0000
+                     ETB 100      : 0000
+                     ETB 50       : 0000
+                     VOID         : 0000
+  RPR  : ENABLED  : OK
+
+  CARD(MOTOR) : ENABLED  : OK
+
+==========================================
+------------08/25/24 14:02:22-------------
+============TRANSACTION START=============
