@@ -1,4 +1,4 @@
-
+import '../../../../core/constants/user_role.dart';
 import '../entities/user_entity.dart';
 
 abstract class AuthRepository {
@@ -6,6 +6,7 @@ abstract class AuthRepository {
     required String username,
     required String email,
     required String password,
+    UserRole role = UserRole.maker,
   });
 
   Future<UserEntity> login({
@@ -16,4 +17,11 @@ abstract class AuthRepository {
   Future<void> logout();
 
   Future<UserEntity?> getCurrentUser();
+
+  Future<List<UserEntity>> getAllUsers();
+
+  Future<bool> updateUserRole({
+    required String username,
+    required UserRole newRole,
+  });
 }

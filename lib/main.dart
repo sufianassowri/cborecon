@@ -14,6 +14,7 @@ import 'features/mobile_recon/presentation/pages/ebirr_recon_page.dart';
 import 'features/mobile_recon/presentation/pages/telebirr_recon_page.dart';
 import 'features/ips_recon/presentation/pages/ips_two_recon_page.dart';
 import 'features/ips_recon/presentation/pages/ips_triangular_recon_page.dart';
+import 'features/admin/presentation/pages/user_management_page.dart';
 import 'features/shortage_excess/presentation/screens/shortage_excess_dashboard.dart';
 import 'features/reversal_recon/presentation/screens/reversal_recon_screen.dart';
 import 'features/disputes/presentation/screens/maker_form_screen.dart';
@@ -78,6 +79,7 @@ class CboOmniReconApp extends ConsumerWidget {
         '/auth_check': (context) => const AuthWrapper(),
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignupScreen(),
+        '/admin/users': (context) => const UserManagementPage(),
         '/': (context) => const OmniReconDashboard(),
 
         // Modern Feature Routes

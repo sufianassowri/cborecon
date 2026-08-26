@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/constants/user_role.dart';
 import '../providers/auth_provider.dart';
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -13,6 +14,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  UserRole _selectedRole = UserRole.maker;
   final _formKey = GlobalKey<FormState>();
   bool _isLoading = false;
 
@@ -27,6 +29,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         _usernameController.text.trim(),
         _emailController.text.trim(),
         _passwordController.text.trim(),
+        role: _selectedRole,
       );
       if (mounted) {
         Navigator.of(context).pushReplacementNamed('/');
@@ -34,7 +37,10 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign Up Failed: ${e.toString().replaceAll("Exception: ", "")}'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Sign Up Failed: ${e.toString().replaceAll("Exception: ", "")}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -50,7 +56,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 400),
+            constraints: const BoxConstraints(maxWidth: 420),
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
               color: Colors.white,
@@ -66,32 +72,64 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text('Create Account', textAlign: TextAlign.center, style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                  const Text('Register new user', textAlign: TextAlign.center, style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+                  const Text(
+                    'Create CBO Account',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  ),
+                  const Text(
+                    'Register user and assign RBAC role',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                  ),
                   const SizedBox(height: 24),
                   TextFormField(
                     controller: _usernameController,
                     decoration: const InputDecoration(labelText: 'Username', prefixIcon: Icon(Icons.person_outline), border: OutlineInputBorder()),
                     validator: (v) => v == null || v.isEmpty ? 'Please enter username' : null,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined), border: OutlineInputBorder()),
+                    decoration: const InputDecoration(labelText: 'Email Address', prefixIcon: Icon(Icons.email_outlined), border: OutlineInputBorder()),
                     validator: (v) => v == null || !v.contains('@') ? 'Please enter valid email' : null,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   TextFormField(
                     controller: _passwordController,
                     obscureText: true,
                     decoration: const InputDecoration(labelText: 'Password', prefixIcon: Icon(Icons.lock_outline), border: OutlineInputBorder()),
                     validator: (v) => v == null || v.length < 6 ? 'Password must be at least 6 characters' : null,
                   ),
+                  const SizedBox(height: 14),
+                  DropdownButtonFormField<UserRole>(
+                    initialValue: _selectedRole,
+                    decoration: const InputDecoration(
+                      labelText: 'Role Assignment',
+                      prefixIcon: Icon(Icons.shield_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: UserRole.values.map((role) {
+                      return DropdownMenuItem(
+                        value: role,
+                        child: Text(role.displayName, style: const TextStyle(fontSize: 13)),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setState(() => _selectedRole = val);
+                    },
+                  ),
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleSignUp,
-                    style: ElevatedButton.styleFrom(backgroundColor: cboCyan, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16)),
-                    child: _isLoading ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Text('Sign Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: cboCyan,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text('Sign Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   ),
                   const SizedBox(height: 16),
                   Row(

@@ -101,6 +101,18 @@ class PostgresService {
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     ''');
+
+    // App users and roles table
+    await _connection!.execute('''
+      CREATE TABLE IF NOT EXISTS app_users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(100) UNIQUE NOT NULL,
+        email VARCHAR(150),
+        role VARCHAR(50) NOT NULL DEFAULT 'maker',
+        status VARCHAR(50) DEFAULT 'ACTIVE',
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+      );
+    ''');
   }
 
   /// Records a reconciliation execution audit trail. Returns true if saved, false otherwise.
@@ -145,6 +157,61 @@ class PostgresService {
     } catch (e) {
       print('Database query error: $e');
       return [];
+    }
+  }
+
+  /// Inserts or updates user in Docker PostgreSQL
+  Future<bool> saveUser({
+    required String username,
+    required String email,
+    required String role,
+  }) async {
+    try {
+      final conn = await getConnection();
+      await conn.execute(
+        Sql.named('''
+          INSERT INTO app_users (username, email, role)
+          VALUES (@username, @email, @role)
+          ON CONFLICT (username) DO UPDATE
+          SET email = EXCLUDED.email, role = EXCLUDED.role;
+        '''),
+        parameters: {
+          'username': username,
+          'email': email,
+          'role': role,
+        },
+      );
+      return true;
+    } catch (e) {
+      print('Save user error: $e');
+      return false;
+    }
+  }
+
+  /// Fetches all users from PostgreSQL
+  Future<List<Map<String, dynamic>>> getAllUsers() async {
+    try {
+      final conn = await getConnection();
+      final result = await conn.execute('SELECT * FROM app_users ORDER BY id ASC;');
+      return result.map((row) => row.toColumnMap()).toList();
+    } catch (e) {
+      print('Get all users error: $e');
+      return [];
+    }
+  }
+
+  /// Updates user role in PostgreSQL
+  Future<bool> updateUserRole(String username, String newRole) async {
+    try {
+      final conn = await getConnection();
+      await conn.execute(
+        Sql.named('UPDATE app_users SET role = @role WHERE username = @username;'),
+        parameters: {'role': newRole, 'username': username},
+      );
+      return true;
+    } catch (e) {
+      print('Update user role error: $e');
+      return false;
     }
   }
 
