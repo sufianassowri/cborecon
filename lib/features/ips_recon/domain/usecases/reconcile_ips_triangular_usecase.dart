@@ -92,6 +92,7 @@ class ReconcileIpsTriangularUseCase {
 
       pairedRows.add({
         'isMatched': isFullyMatched,
+        'key': bankRef,
         'ecRow': ecRow,
         'etRow': etMatch,
         'crRow': crMatch,

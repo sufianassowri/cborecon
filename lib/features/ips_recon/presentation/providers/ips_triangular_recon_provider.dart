@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:pluto_grid/pluto_grid.dart';
+import '../../../../core/services/postgres_service.dart';
 import '../../../../core/utils/csv_parser_util.dart';
 import '../../../../core/utils/file_saver_util.dart';
 import '../../domain/entities/ips_recon_models.dart';
@@ -105,9 +106,11 @@ class IpsTriangularNotifier extends StateNotifier<IpsTriangularState> {
         final ecRow = p['ecRow'] as List<dynamic>;
         final etRow = p['etRow'] as List<dynamic>?;
         final crRow = p['crRow'] as List<dynamic>?;
+        final String key = p['key']?.toString() ?? (ecRow.isNotEmpty ? ecRow[0].toString() : '');
 
         final Map<String, PlutoCell> cells = {
           'status': PlutoCell(value: isMatched ? 'MATCHED' : 'UNMATCHED'),
+          'key': PlutoCell(value: key),
         };
 
         for (int i = 0; i < result.ecHeaders.length; i++) {
@@ -133,6 +136,13 @@ class IpsTriangularNotifier extends StateNotifier<IpsTriangularState> {
         summary: result.summary,
         isProcessing: false,
       );
+
+      PostgresService.instance.logReconciliation(
+        moduleName: 'IPS 3-Way Triangular Reconciliation',
+        totalRecords: result.summary.totalCount,
+        matchedPairs: result.summary.matchedCount,
+        unmatchedExceptions: result.summary.unmatchedCount,
+      );
     } catch (e) {
       state = state.copyWith(isProcessing: false, errorMessage: e.toString());
     }
@@ -144,6 +154,7 @@ class IpsTriangularNotifier extends StateNotifier<IpsTriangularState> {
       final List<List<dynamic>> csvData = [];
       final List<String> allHeaders = [
         'TRIANGULAR_STATUS',
+        'REFERENCE_KEY',
         ...state.ecHeaders.map((h) => 'EC_$h'),
         ...state.etHeaders.map((h) => 'ET_$h'),
         ...state.crHeaders.map((h) => 'CR_$h'),
@@ -153,6 +164,7 @@ class IpsTriangularNotifier extends StateNotifier<IpsTriangularState> {
       for (final row in state.plutoRows) {
         final List<dynamic> rowData = [
           row.cells['status']?.value ?? '',
+          row.cells['key']?.value ?? '',
           ...List.generate(state.ecHeaders.length, (i) => row.cells['ec_$i']?.value ?? ''),
           ...List.generate(state.etHeaders.length, (i) => row.cells['et_$i']?.value ?? ''),
           ...List.generate(state.crHeaders.length, (i) => row.cells['cr_$i']?.value ?? ''),

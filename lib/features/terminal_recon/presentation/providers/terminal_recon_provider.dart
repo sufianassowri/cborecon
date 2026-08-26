@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:pluto_grid/pluto_grid.dart';
+import '../../../../core/services/postgres_service.dart';
 import '../../../../core/utils/csv_parser_util.dart';
 import '../../../../core/utils/file_saver_util.dart';
 import '../../../../core/utils/excel_exporter_util.dart';
@@ -128,6 +129,15 @@ class TerminalReconNotifier extends StateNotifier<TerminalReconState> {
         reconciledRows: result,
         plutoRows: pRows,
         isProcessing: false,
+      );
+
+      final matched = result.where((r) => r.status == TerminalReconStatus.ok).length;
+      final unmatched = result.length - matched;
+      PostgresService.instance.logReconciliation(
+        moduleName: 'Terminal Reconciliation (${isCbeMode ? "CBE" : "CBO"})',
+        totalRecords: result.length,
+        matchedPairs: matched,
+        unmatchedExceptions: unmatched,
       );
     } catch (e) {
       state = state.copyWith(

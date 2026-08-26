@@ -18,8 +18,10 @@ class PanMaskerUtil {
 
   /// Verifies if the first 4 and last 4 digits of two PAN strings match
   static bool isPanMatch(dynamic pan1, dynamic pan2) {
-    final String p1 = NormalizationUtil.normalize(pan1).replaceAll(RegExp(r'\s+'), '');
-    final String p2 = NormalizationUtil.normalize(pan2).replaceAll(RegExp(r'\s+'), '');
+    final String p1 =
+        NormalizationUtil.normalize(pan1).replaceAll(RegExp(r'\s+'), '');
+    final String p2 =
+        NormalizationUtil.normalize(pan2).replaceAll(RegExp(r'\s+'), '');
 
     if (p1.length < 8 || p2.length < 8) return false;
 

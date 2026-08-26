@@ -26,7 +26,6 @@ class AppConstants {
   static const double defaultCommissionHigh = 0.0060;
   static const double amountEpsilon = 0.01;
 }
-
 /// Positional column indices mapped directly from raw MasterCard TSV exports
 class McTsvIndices {
   McTsvIndices._();

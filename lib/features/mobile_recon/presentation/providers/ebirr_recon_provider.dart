@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/legacy.dart';
 import 'package:pluto_grid/pluto_grid.dart';
+import '../../../../core/services/postgres_service.dart';
 import '../../../../core/utils/csv_parser_util.dart';
 import '../../../../core/utils/file_saver_util.dart';
 import '../../domain/entities/mobile_recon_row.dart';
@@ -110,6 +111,15 @@ class EbirrReconNotifier extends StateNotifier<EbirrReconState> {
         reconciledRows: result,
         plutoRows: pRows,
         isProcessing: false,
+      );
+
+      final matched = result.where((r) => r.status == MobileReconStatus.ok).length;
+      final unmatched = result.length - matched;
+      PostgresService.instance.logReconciliation(
+        moduleName: 'Ebirr Reconciliation',
+        totalRecords: result.length,
+        matchedPairs: matched,
+        unmatchedExceptions: unmatched,
       );
     } catch (e) {
       state = state.copyWith(isProcessing: false, errorMessage: e.toString());
