@@ -18,10 +18,12 @@ import 'features/admin/presentation/pages/user_management_page.dart';
 import 'features/shortage_excess/presentation/screens/shortage_excess_dashboard.dart';
 import 'features/reversal_recon/presentation/screens/reversal_recon_screen.dart';
 import 'features/disputes/presentation/screens/maker_form_screen.dart';
+import 'features/disputes/presentation/screens/manager_dispute_screen.dart';
 import 'features/disputes/presentation/screens/checker_review_screen.dart';
 import 'features/disputes/presentation/screens/dispute_checker_view.dart';
 import 'features/disputes/presentation/screens/dispute_auditor_view.dart';
 import 'features/disputes/disputememo/presentation/views/dispute_memo_page.dart';
+import 'features/report_merger/presentation/pages/report_merger_page.dart';
 import 'features/remote_disputeutility/presentation/pages/remote_dispute_utility_page.dart';
 import 'features/master_card/tsv_processor_page.dart';
 import 'features/recon_declined/presentation/screens/recon_declined_dashboard.dart';
@@ -91,10 +93,12 @@ class CboOmniReconApp extends ConsumerWidget {
         '/ips_triangular': (context) => const IpsTriangularReconPage(),
         '/shortage_excess': (context) => const ShortageExcessDashboard(),
         '/reversal_recon': (context) => const ReversalReconScreen(),
-        '/dispute_maker': (context) => MakerFormScreen(),
-        '/dispute_checker': (context) => CheckerPanelScreen(),
-        '/dispute_auditor': (context) => DisputeAuditorView(),
+        '/dispute_maker': (context) => const MakerFormScreen(),
+        '/dispute_manager': (context) => const ManagerDisputeScreen(),
+        '/dispute_checker': (context) => const CheckerPanelScreen(),
+        '/dispute_auditor': (context) => const DisputeAuditorView(),
         '/dispute_memo': (context) => const DisputeMemoPage(),
+        '/report_merger': (context) => const ReportMergerPage(),
         '/remote_dispute_utility': (context) =>
             const RemoteDisputeUtilityPage(),
         '/mastercard_hub': (context) => const TsvProcessorPage(),
@@ -121,6 +125,8 @@ class CboOmniReconApp extends ConsumerWidget {
         '/onusdisputememo': (context) => const DisputeMemoPage(),
         '/reversalmatcher': (context) => const ReversalReconScreen(),
         '/remote_disputeutility': (context) => const RemoteDisputeUtilityPage(),
+        '/merger': (context) => const ReportMergerPage(),
+        '/reportmerger': (context) => const ReportMergerPage(),
       },
     );
   }

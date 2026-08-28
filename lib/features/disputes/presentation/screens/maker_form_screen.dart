@@ -1,10 +1,15 @@
+import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import '../../../../core/constants/cbo_colors.dart';
+import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_shell.dart';
-
-enum AccountTypeSelection { atm, access }
-enum AtmType { ncr, crm }
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../data/datasources/dispute_file_parser.dart';
+import '../../data/model/dispute_batch_model.dart';
+import '../controllers/dispute_provider.dart';
 
 class MakerFormScreen extends ConsumerStatefulWidget {
   const MakerFormScreen({super.key});
@@ -13,546 +18,846 @@ class MakerFormScreen extends ConsumerStatefulWidget {
   ConsumerState<MakerFormScreen> createState() => _MakerFormScreenState();
 }
 
-class _MakerFormScreenState extends ConsumerState<MakerFormScreen> {
-  final _terminalController = TextEditingController();
-  final _amountController = TextEditingController();
-  final _debitAccountController = TextEditingController();
-  final _creditAccountController = TextEditingController();
-  final _makerController = TextEditingController(text: "Sufian Aliyyii");
-  final _checkerController = TextEditingController();
-  final _subjectController = TextEditingController();
-  final _entryDateController = TextEditingController();
-  final _transactionDateController = TextEditingController();
-  final _descriptionController = TextEditingController();
+class _MakerFormScreenState extends ConsumerState<MakerFormScreen>
+    with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
-  AtmType _selectedAtmType = AtmType.crm;
-  AccountTypeSelection _selectedAccountType = AccountTypeSelection.atm;
-  String? _fileName;
+  // File Upload State
+  String? _selectedFileName;
+  ParsedDisputeBatchResult? _parsedResult;
+  bool _isUploading = false;
+  double _uploadProgress = 0.0;
+  String _uploadStatusMessage = '';
 
-  final List<TransactionRow> _transactionRows = [
-    TransactionRow("ETB100050010116", "5,000.00", "ETB1234567890123", "2024-04-24"),
-    TransactionRow("ETB1000012324852", "5,000.00", "ETB1000012324852", "2024-04-24"),
-    TransactionRow("ETB100050010116", "5,000.00", "ETB1234567890123", "2024-04-24"),
-  ];
+  // Manual Raw Text Input Controller
+  final TextEditingController _pasteTextController = TextEditingController();
+
+  // Sample data button helper
+  static const String sample6LineText = '''ETB1764400020478
+D
+38400
+1
+Deposit Dispute
+Deposit Dispute
+ETB1000500020478
+D
+19800
+1
+Deposit Dispute
+Deposit Dispute
+ETB1000500010013
+D
+1000
+1
+Deposit Dispute
+Deposit Dispute
+1051800016565
+C
+38400
+51
+Deposit Dispute
+Deposit Dispute
+1051800016565
+C
+19800
+51
+Deposit Dispute
+Deposit Dispute
+1006300315056
+C
+1000
+51
+Deposit Dispute
+Deposit Dispute''';
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
 
   @override
   void dispose() {
-    _terminalController.dispose();
-    _amountController.dispose();
-    _debitAccountController.dispose();
-    _creditAccountController.dispose();
-    _makerController.dispose();
-    _checkerController.dispose();
-    _subjectController.dispose();
-    _entryDateController.dispose();
-    _transactionDateController.dispose();
-    _descriptionController.dispose();
+    _tabController.dispose();
+    _pasteTextController.dispose();
     super.dispose();
   }
 
-  void _autoFillAccounts() {
-    String input = _terminalController.text.trim();
-    if (input.length < 4) {
-      return;
-    }
+  Future<void> _pickFile() async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['txt', 'csv', 'xlsx', 'xls', 'log'],
+        withData: true,
+      );
 
-    String fourDigitSuffix = input.substring(input.length - 4);
-    int fourthDigitFromEnd = int.tryParse(fourDigitSuffix[0]) ?? 0;
-    int adjustedDigit = fourthDigitFromEnd + 1;
-    String lastThreeDigits = fourDigitSuffix.substring(1);
-    String finalExtension = "$adjustedDigit" "0" "$lastThreeDigits";
+      if (result != null && result.files.isNotEmpty) {
+        final file = result.files.single;
+        final currentUser = ref.read(currentUserProvider);
+        final makerName = currentUser?.username ?? 'Sufian_Maker';
 
-    String baseAtmNcr = 'ETB10002000';
-    String baseAtmCrm = 'ETB10005000';
-    String baseAccessNcr = 'ETB17643000';
-    String baseAccessCrm = 'ETB17644000';
+        setState(() {
+          _selectedFileName = file.name;
+        });
 
-    setState(() {
-      if (_selectedAtmType == AtmType.ncr) {
-        if (_selectedAccountType == AccountTypeSelection.atm) {
-          _debitAccountController.text = '$baseAtmNcr$finalExtension';
+        if (file.extension == 'xlsx' || file.extension == 'xls') {
+          if (file.bytes != null) {
+            final parsed = DisputeFileParser.parseExcelBytes(
+              bytes: file.bytes!,
+              fileName: file.name,
+              makerUsername: makerName,
+            );
+            setState(() {
+              _parsedResult = parsed;
+            });
+          }
         } else {
-          _debitAccountController.text = '$baseAccessNcr$finalExtension';
-        }
-      } else {
-        if (_selectedAccountType == AccountTypeSelection.atm) {
-          _debitAccountController.text = '$baseAtmCrm$finalExtension';
-        } else {
-          _debitAccountController.text = '$baseAccessCrm$finalExtension';
+          // Plain text / CSV
+          String text = '';
+          if (file.bytes != null) {
+            text = utf8.decode(file.bytes!, allowMalformed: true);
+          }
+          final parsed = DisputeFileParser.parseRawText(
+            rawText: text,
+            fileName: file.name,
+            makerUsername: makerName,
+          );
+          setState(() {
+            _parsedResult = parsed;
+          });
         }
       }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error reading file: $e'), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  void _parsePastedText() {
+    final text = _pasteTextController.text.trim();
+    if (text.isEmpty) return;
+
+    final currentUser = ref.read(currentUserProvider);
+    final makerName = currentUser?.username ?? 'Sufian_Maker';
+
+    final parsed = DisputeFileParser.parseRawText(
+      rawText: text,
+      fileName: 'Pasted_Dispute_${DateFormat('HHmmss').format(DateTime.now())}.txt',
+      makerUsername: makerName,
+    );
+
+    setState(() {
+      _selectedFileName = 'Direct Text Input';
+      _parsedResult = parsed;
     });
   }
 
-  Future<void> _pickFile() async {
-    FilePickerResult? result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['csv', 'xlsx', 'xls'],
-    );
+  void _loadSampleData() {
+    _pasteTextController.text = sample6LineText;
+    _parsePastedText();
+  }
 
-    if (result != null) {
+  Future<void> _submitBatchToBack4App() async {
+    if (_parsedResult == null || _parsedResult!.items.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No valid transactions parsed to upload.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isUploading = true;
+      _uploadProgress = 0.0;
+      _uploadStatusMessage = 'Initializing Back4App Dispute Batch...';
+    });
+
+    try {
+      final notifier = ref.read(disputeBatchesNotifierProvider.notifier);
+      final savedBatch = await notifier.uploadBatch(
+        batch: _parsedResult!.batch,
+        items: _parsedResult!.items,
+        onProgress: (current, total) {
+          setState(() {
+            _uploadProgress = current / total;
+            _uploadStatusMessage =
+                'Saving transactions to b4app ($current / $total)...';
+          });
+        },
+      );
+
       setState(() {
-        _fileName = result.files.single.name;
+        _isUploading = false;
+        _parsedResult = null;
+        _selectedFileName = null;
+        _pasteTextController.clear();
       });
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: const [
+              Icon(Icons.check_circle_rounded, color: Colors.green, size: 28),
+              SizedBox(width: 10),
+              Text('Batch Registered Successfully', style: TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Ticket / Batch ID: ${savedBatch.batchNumber}',
+                  style: const TextStyle(fontWeight: FontWeight.bold, color: CboColors.primaryBlue)),
+              const SizedBox(height: 8),
+              Text('Total Count: ${savedBatch.transactionCount} transactions (Single Batch Header)'),
+              Text('Debit Sum: ETB ${NumberFormat('#,##0.00').format(savedBatch.totalDebitAmount)}'),
+              Text('Credit Sum: ETB ${NumberFormat('#,##0.00').format(savedBatch.totalCreditAmount)}'),
+              Text('Status: PENDING ASSIGNMENT', style: TextStyle(color: Colors.amber[800], fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              const Text('The batch is now pending review and assignment by Operations Manager.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _tabController.animateTo(1); // Switch to History Tab
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: CboColors.primaryBlue),
+              child: const Text('View Batch History', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      setState(() {
+        _isUploading = false;
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $e'), backgroundColor: Colors.red),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = ref.watch(currentUserProvider);
+
     return ResponsiveShell(
       currentRoute: '/dispute_maker',
-      title: 'Dispute Management',
-      subtitle: 'Maker Portal & Workflow Engine',
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            bool isWideScreen = constraints.maxWidth > 900;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildSectionCard(
-                  title: "1. Transaction Source (Dropdowns & Autocomplete)",
-                  content: Column(
-                    children: [
-                      _buildResponsiveRow(
-                        isWideScreen,
-                        children: [
-                          _buildDropdownField<AtmType>(
-                            label: "ATM Type",
-                            value: _selectedAtmType,
-                            items: const [
-                              DropdownMenuItem(value: AtmType.ncr, child: Text("NCR")),
-                              DropdownMenuItem(value: AtmType.crm, child: Text("CRM")),
-                            ],
-                            onChanged: (AtmType? v) {
-                              if (v != null) {
-                                setState(() {
-                                  _selectedAtmType = v;
-                                });
-                                _autoFillAccounts();
-                              }
-                            },
-                          ),
-                          _buildDropdownField<AccountTypeSelection>(
-                            label: "Account Type",
-                            value: _selectedAccountType,
-                            items: const [
-                              DropdownMenuItem(
-                                  value: AccountTypeSelection.atm,
-                                  child: Text("ATM Account")),
-                              DropdownMenuItem(
-                                  value: AccountTypeSelection.access,
-                                  child: Text("Access/Payble Account")),
-                            ],
-                            onChanged: (AccountTypeSelection? v) {
-                              if (v != null) {
-                                setState(() {
-                                  _selectedAccountType = v;
-                                });
-                                _autoFillAccounts();
-                              }
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _buildResponsiveRow(
-                        isWideScreen,
-                        children: [
-                          TextFormField(
-                            controller: _terminalController,
-                            decoration: const InputDecoration(
-                              labelText: "Terminal Code (e.g., 0116)",
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.pin_outlined),
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
-                            onChanged: (value) => _autoFillAccounts(),
-                          ),
-                          TextFormField(
-                            controller: _debitAccountController,
-                            decoration: const InputDecoration(
-                              labelText: "Auto-Account",
-                              border: OutlineInputBorder(),
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
-                            readOnly: true,
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      _buildResponsiveRow(
-                        isWideScreen,
-                        children: [
-                          TextFormField(
-                            controller: _amountController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: "Amount (ETB)",
-                              border: OutlineInputBorder(),
-                              prefixText: "ETB ",
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
-                          ),
-                          TextFormField(
-                            controller: _creditAccountController,
-                            decoration: const InputDecoration(
-                              labelText: "Credit Acc",
-                              border: OutlineInputBorder(),
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        alignment: WrapAlignment.start,
-                        spacing: 8.0,
-                        runSpacing: 8.0,
-                        children: [
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF003366),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                            ),
-                            onPressed: () {},
-                            icon: const Icon(Icons.upload_file, size: 18),
-                            label: const Text("Upload EJ"),
-                          ),
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                            ),
-                            onPressed: () async {
-                              DateTime? picked = await showDatePicker(
-                                context: context,
-                                initialDate: DateTime.now(),
-                                firstDate: DateTime(2000),
-                                lastDate: DateTime(2030),
-                              );
-                              if (picked != null) {
-                                setState(() {
-                                  _transactionDateController.text =
-                                  picked.toString().split(' ')[0];
-                                });
-                              }
-                            },
-                            icon: const Icon(Icons.calendar_today, size: 18),
-                            label: Text(
-                              _transactionDateController.text.isEmpty
-                                  ? "Transaction Date"
-                                  : _transactionDateController.text,
-                            ),
-                          ),
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                            ),
-                            onPressed: _pickFile,
-                            icon: const Icon(Icons.attach_file, size: 18),
-                            label: Text(
-                              _fileName == null
-                                  ? "Upload Confirmation Letter"
-                                  : "File: ${_fileName!.length > 15 ? _fileName!.substring(0, 12) + '...' : _fileName}",
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+      title: 'Dispute Management - Maker Portal',
+      subtitle: 'Upload multi-line dispute files, auto-aggregate single batch DC tickets & track review workflow',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+          tooltip: 'Refresh Batch History',
+          onPressed: () => ref.read(disputeBatchesNotifierProvider.notifier).refresh(),
+        ),
+      ],
+      body: Column(
+        children: [
+          Container(
+            color: Colors.white,
+            child: TabBar(
+              controller: _tabController,
+              labelColor: CboColors.primaryBlue,
+              unselectedLabelColor: Colors.grey,
+              indicatorColor: CboColors.primaryBlue,
+              indicatorWeight: 3,
+              tabs: const [
+                Tab(
+                  icon: Icon(Icons.cloud_upload_rounded),
+                  text: 'Upload & Parse Dispute File',
                 ),
-                const SizedBox(height: 16),
-                _buildSectionCard(
-                  title: "2. Transaction Details (Dense Data Grid/Table)",
-                  content: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          headingRowColor:
-                          WidgetStateProperty.all(Colors.grey[200]),
-                          border: TableBorder.all(color: Colors.grey.shade300),
-                          columns: const [
-                            DataCell(Text("Debit Account",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 13))),
-                            DataCell(Text("Amount (ETB)",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 13))),
-                            DataCell(Text("Credit (Customer) Account",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 13))),
-                            DataCell(Text("Transaction Date",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 13))),
-                            DataCell(Text("Actions",
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold, fontSize: 13))),
-                          ]
-                              .map((cell) => DataColumn(
-                              label: (cell).child))
-                              .toList(),
-                          rows: _transactionRows.map((row) {
-                            return DataRow(cells: [
-                              DataCell(Text(row.debitAccount)),
-                              DataCell(Text(row.amount)),
-                              DataCell(Text(row.creditAccount)),
-                              DataCell(Text(row.transactionDate)),
-                              DataCell(
-                                Wrap(
-                                  spacing: 6,
-                                  children: [
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.blue,
-                                        foregroundColor: Colors.white,
-                                        minimumSize: const Size(60, 30),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6),
-                                      ),
-                                      onPressed: () {},
-                                      icon: const Icon(Icons.edit, size: 12),
-                                      label: const Text("Edit",
-                                          style: TextStyle(fontSize: 11)),
-                                    ),
-                                    ElevatedButton.icon(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.red,
-                                        foregroundColor: Colors.white,
-                                        minimumSize: const Size(60, 30),
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 6),
-                                      ),
-                                      onPressed: () {},
-                                      icon: const Icon(Icons.delete, size: 12),
-                                      label: const Text("Delete",
-                                          style: TextStyle(fontSize: 11)),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ]);
-                          }).toList(),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Wrap(
-                        spacing: 12,
-                        runSpacing: 12,
-                        alignment: WrapAlignment.spaceBetween,
-                        children: [
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF003366)),
-                            onPressed: () {},
-                            icon: const Icon(Icons.add),
-                            label: const Text("Add Transaction Row"),
-                          ),
-                          OutlinedButton(
-                            onPressed: () {},
-                            child: const Text("Upload credit and debit recite"),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildSectionCard(
-                  title: "3. Processing & File Upload Zone",
-                  content: isWideScreen
-                      ? Row(
-                    children: [
-                      Expanded(flex: 3, child: _buildUploadZone()),
-                      const SizedBox(width: 16),
-                      Expanded(flex: 2, child: _buildSummaryZone()),
-                    ],
-                  )
-                      : Column(
-                    children: [
-                      _buildUploadZone(),
-                      const SizedBox(height: 16),
-                      _buildSummaryZone(),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  alignment: WrapAlignment.end,
-                  children: [
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 14),
-                      ),
-                      onPressed: () {},
-                      child: const Text("Discard Changes"),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 14),
-                      ),
-                      onPressed: () {
-                        //Navigate to Checker UI
-                        Navigator.pushNamed(context, '/disputeChecker');///disputeChecker
-                      },
-                      child: const Text("Submit to Checker / Save"),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  "User: Sufian Aliyyii (Maker)  |  Date: 2026-05-03  |   HO: Digital Banking",
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  textAlign: TextAlign.center,
+                Tab(
+                  icon: Icon(Icons.history_rounded),
+                  text: 'My Batches & Approval Status',
                 ),
               ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionCard({required String title, required Widget content}) {
-    return Card(
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: Color(0xFFE0E0E0)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF003366),
-              ),
             ),
-            const Divider(),
-            const SizedBox(height: 8),
-            content,
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildResponsiveRow(bool isWideScreen, {required List<Widget> children}) {
-    if (isWideScreen) {
-      return Row(
-        children: children.map((e) => Expanded(child: e)).toList().expand(
-                (widget) => [
-              widget,
-              const SizedBox(width: 16)
-            ]).toList()
-          ..removeLast(),
-      );
-    } else {
-      return Column(
-        children:
-        children.map((e) => Padding(
-          padding: const EdgeInsets.only(bottom: 12.0),
-          child: e,
-        )).toList(),
-      );
-    }
-  }
-
-  Widget _buildDropdownField<T>({
-    required String label,
-    required T value,
-    required List<DropdownMenuItem<T>> items,
-    required ValueChanged<T?> onChanged,
-  }) {
-    return DropdownButtonFormField<T>(
-      initialValue: value,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        filled: true,
-        fillColor: Colors.white,
-      ),
-      items: items,
-      onChanged: onChanged,
-    );
-  }
-
-  Widget _buildUploadZone() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        border: Border.all(color: Colors.grey, style: BorderStyle.solid),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Center(
-        child: Column(
-          children: [
-            const Icon(Icons.cloud_upload, size: 40, color: Colors.grey),
-            const SizedBox(height: 8),
-            Text(
-              _fileName ?? "[ Drag & Drop CSV/Excel File ]",
-              style: const TextStyle(color: Colors.grey),
-              textAlign: TextAlign.center,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryZone() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "Summary:",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          SizedBox(height: 8),
-          Text("Total Records: 1"),
-          Text("Total Amount (ETB): 5,000.00"),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildUploadTab(),
+                _buildHistoryTab(currentUser?.username ?? 'Sufian_Maker'),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
-}
 
-class TransactionRow {
-  final String debitAccount;
-  final String amount;
-  final String creditAccount;
-  final String transactionDate;
+  Widget _buildUploadTab() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Card
+          GlassCard(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: CboColors.primaryBlue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.post_add_rounded, color: CboColors.primaryBlue, size: 32),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Maker Upload & Auto-Aggregation Engine',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: CboColors.primaryBlue),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Uploads are saved to Back4App (b4app) as a single Batch / Ticket / DC header containing 100s or 1000s of child transaction records.',
+                          style: TextStyle(fontSize: 13, color: Colors.black87),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: _loadSampleData,
+                    icon: const Icon(Icons.data_object_rounded, size: 18),
+                    label: const Text('Load 6-Line Sample'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: CboColors.primaryCyan,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
 
-  TransactionRow(this.debitAccount, this.amount, this.creditAccount, this.transactionDate);
+          // Upload Option Selection (File Picker vs Direct Text Area)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Left Column: File Dropzone & Paste Box
+              Expanded(
+                flex: 5,
+                child: Column(
+                  children: [
+                    // File Pick Button Card
+                    InkWell(
+                      onTap: _pickFile,
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        padding: const EdgeInsets.all(28),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: _selectedFileName != null ? CboColors.primaryCyan : Colors.grey.shade300,
+                            width: 2,
+                            strokeAlign: BorderSide.strokeAlignInside,
+                          ),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              _selectedFileName != null ? Icons.task_alt_rounded : Icons.file_upload_outlined,
+                              size: 48,
+                              color: _selectedFileName != null ? Colors.green : CboColors.primaryBlue,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              _selectedFileName ?? 'Click to browse dispute file (.txt, .csv, .xlsx)',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: _selectedFileName != null ? Colors.green.shade800 : Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            const Text(
+                              'Supports continuous 6-line dispute records or standard settlement CSV/Excel formats',
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Direct Paste Area
+                    GlassCard(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Or Paste Raw 6-Line Dispute Content',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                ),
+                                TextButton.icon(
+                                  onPressed: _parsePastedText,
+                                  icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                                  label: const Text('Parse Text'),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            TextField(
+                              controller: _pasteTextController,
+                              maxLines: 8,
+                              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                              decoration: InputDecoration(
+                                hintText: 'ETB1764400020478\nD\n38400\n1\nDeposit Dispute\nDeposit Dispute\n...',
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                contentPadding: const EdgeInsets.all(12),
+                                fillColor: const Color(0xFFF9FBFD),
+                                filled: true,
+                              ),
+                              onChanged: (_) => _parsePastedText(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+
+              // Right Column: Parsed Batch Summary & Sub-DC Items
+              Expanded(
+                flex: 7,
+                child: _parsedResult == null
+                    ? Container(
+                        height: 380,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.7),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.inventory_2_outlined, size: 60, color: Colors.grey),
+                              SizedBox(height: 12),
+                              Text('No file or text parsed yet',
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.grey)),
+                              SizedBox(height: 4),
+                              Text('Upload or paste dispute lines on the left to see the aggregated batch',
+                                  style: TextStyle(fontSize: 13, color: Colors.grey)),
+                            ],
+                          ),
+                        ),
+                      )
+                    : _buildParsedSummaryView(),
+              ),
+            ],
+          ),
+
+          if (_isUploading) ...[
+            const SizedBox(height: 20),
+            GlassCard(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(_uploadStatusMessage, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text('${(_uploadProgress * 100).toInt()}%',
+                            style: const TextStyle(fontWeight: FontWeight.bold, color: CboColors.primaryBlue)),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    LinearProgressIndicator(
+                      value: _uploadProgress > 0 ? _uploadProgress : null,
+                      backgroundColor: Colors.grey.shade200,
+                      color: CboColors.primaryBlue,
+                      minHeight: 8,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildParsedSummaryView() {
+    final batch = _parsedResult!.batch;
+    final items = _parsedResult!.items;
+    final fmt = NumberFormat('#,##0.00');
+
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Batch Header & Save Button
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: CboColors.primaryBlue,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            batch.batchNumber,
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: batch.isBalanced ? Colors.green.shade100 : Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            batch.isBalanced ? 'BALANCED (DR = CR)' : 'OUT OF BALANCE',
+                            style: TextStyle(
+                              color: batch.isBalanced ? Colors.green.shade900 : Colors.red.shade900,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Single Batch Ticket: ${batch.transactionCount} transactions detected',
+                      style: const TextStyle(fontSize: 13, color: Colors.black87),
+                    ),
+                  ],
+                ),
+                ElevatedButton.icon(
+                  onPressed: _isUploading ? null : _submitBatchToBack4App,
+                  icon: const Icon(Icons.cloud_upload_rounded, color: Colors.white),
+                  label: const Text('Save Batch to b4app', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+
+            // Financial Summary Metrics
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5E9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.green.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Total Debit (DR)', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        const SizedBox(height: 4),
+                        Text('ETB ${fmt.format(batch.totalDebitAmount)}',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE3F2FD),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Total Credit (CR)', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        const SizedBox(height: 4),
+                        Text('ETB ${fmt.format(batch.totalCreditAmount)}',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: CboColors.primaryBlue)),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: batch.isBalanced ? const Color(0xFFF1F8E9) : const Color(0xFFFFEBEE),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: batch.isBalanced ? Colors.green.shade200 : Colors.red.shade200,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Balance Difference', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                        const SizedBox(height: 4),
+                        Text(
+                          'ETB ${fmt.format((batch.totalDebitAmount - batch.totalCreditAmount).abs())}',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: batch.isBalanced ? Colors.green.shade800 : Colors.red.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Line Items Preview Table (Sub-DC IDs)
+            const Text(
+              'Parsed Transaction Line Items Preview (DC Records):',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 220,
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListView.separated(
+                itemCount: items.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final it = items[index];
+                  final isDebit = it.type == 'D';
+                  return ListTile(
+                    dense: true,
+                    leading: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: isDebit ? Colors.red.shade50 : Colors.green.shade50,
+                        border: Border.all(color: isDebit ? Colors.red.shade300 : Colors.green.shade300),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        it.type,
+                        style: TextStyle(
+                          color: isDebit ? Colors.red.shade900 : Colors.green.shade900,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                    title: Row(
+                      children: [
+                        Text(it.transactionId, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(width: 12),
+                        Text(it.effectiveAccount, style: const TextStyle(fontSize: 13, fontFamily: 'monospace')),
+                      ],
+                    ),
+                    subtitle: Text('${it.narrative1} | Code: ${it.txnCode} | Status: ${it.recordStatus}'),
+                    trailing: Text(
+                      'ETB ${fmt.format(it.amount)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHistoryTab(String currentMaker) {
+    final batchesAsync = ref.watch(disputeBatchesNotifierProvider);
+    final fmt = NumberFormat('#,##0.00');
+
+    return batchesAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (err, _) => Center(child: Text('Error loading batches: $err')),
+      data: (batches) {
+        if (batches.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Icon(Icons.history_rounded, size: 64, color: Colors.grey),
+                SizedBox(height: 12),
+                Text('No dispute batches uploaded yet', style: TextStyle(fontSize: 16, color: Colors.grey)),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(20),
+          itemCount: batches.length,
+          itemBuilder: (context, index) {
+            final b = batches[index];
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              child: ExpansionTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(b.status).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(_getStatusIcon(b.status), color: _getStatusColor(b.status)),
+                ),
+                title: Row(
+                  children: [
+                    Text(b.batchNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    const SizedBox(width: 10),
+                    _buildStatusChip(b.status),
+                  ],
+                ),
+                subtitle: Text(
+                  'Created: ${DateFormat('yyyy-MM-dd HH:mm').format(b.madeAt)} | ${b.transactionCount} transactions | Total: ETB ${fmt.format(b.totalDebitAmount)}',
+                ),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Assigned To Checker: ${b.assignedTo ?? "Not yet assigned"}',
+                                style: const TextStyle(fontWeight: FontWeight.w600)),
+                            if (b.assignedAt != null)
+                              Text('Assigned: ${DateFormat('yyyy-MM-dd HH:mm').format(b.assignedAt!)}',
+                                  style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          ],
+                        ),
+                        if (b.checkerComment != null && b.checkerComment!.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: Colors.red.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red.shade200),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.feedback_rounded, color: Colors.red, size: 20),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text('Checker Comment: ${b.checkerComment}',
+                                      style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.w500)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'NEW':
+      case 'PENDING_ASSIGNMENT':
+        return Colors.orange;
+      case 'ASSIGNED':
+        return CboColors.primaryBlue;
+      case 'AUTHORIZED':
+        return Colors.green;
+      case 'REJECTED':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status) {
+      case 'NEW':
+      case 'PENDING_ASSIGNMENT':
+        return Icons.hourglass_top_rounded;
+      case 'ASSIGNED':
+        return Icons.assignment_ind_rounded;
+      case 'AUTHORIZED':
+        return Icons.check_circle_rounded;
+      case 'REJECTED':
+        return Icons.cancel_rounded;
+      default:
+        return Icons.help_outline_rounded;
+    }
+  }
+
+  Widget _buildStatusChip(String status) {
+    final color = _getStatusColor(status);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withOpacity(0.4)),
+      ),
+      child: Text(
+        status.replaceAll('_', ' '),
+        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 11),
+      ),
+    );
+  }
 }

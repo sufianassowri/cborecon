@@ -5,6 +5,7 @@ class CboColors {
   CboColors._();
 
   // Primary CBO Brand & Cyber Accents
+  static const Color primaryBlue = Color(0xFF003366);
   static const Color primaryCyan = Color(0xFF009688);
   static const Color primaryCyanDark = Color(0xFF00695C);
   static const Color primaryCyanLight = Color(0xFF4DB6AC);

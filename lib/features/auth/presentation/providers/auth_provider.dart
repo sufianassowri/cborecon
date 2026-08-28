@@ -14,6 +14,12 @@ final authNotifierProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User
   return AuthNotifier(ref.read(authRepositoryProvider));
 });
 
+// Provides the current user entity directly
+final currentUserProvider = Provider<UserEntity?>((ref) {
+  final authState = ref.watch(authNotifierProvider);
+  return authState.value;
+});
+
 // Provides the current user's role directly (defaulting to maker if unauthenticated)
 final currentUserRoleProvider = Provider<UserRole>((ref) {
   final authState = ref.watch(authNotifierProvider);

@@ -1,694 +1,774 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:pluto_grid/pluto_grid.dart';
-import 'package:pdfx/pdfx.dart';
+import '../../../../core/constants/cbo_colors.dart';
+import '../../../../core/widgets/glass_card.dart';
+import '../../../../core/widgets/responsive_shell.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../data/model/dispute_batch_model.dart';
+import '../../data/model/transaction_model.dart';
+import '../controllers/dispute_provider.dart';
 
-class CheckerPanelScreen extends StatefulWidget {
+class CheckerPanelScreen extends ConsumerStatefulWidget {
   const CheckerPanelScreen({super.key});
+
   @override
-  State<CheckerPanelScreen> createState() => _CheckerPanelScreenState();
+  ConsumerState<CheckerPanelScreen> createState() => _CheckerPanelScreenState();
 }
-class _CheckerPanelScreenState extends State<CheckerPanelScreen> {
-  final ValueNotifier<bool> _isFileViewerVisible = ValueNotifier<bool>(false);
-  String _selectedFileViewTitle = '';
-  Uint8List? _selectedFileBytes;
+
+class _CheckerPanelScreenState extends ConsumerState<CheckerPanelScreen> {
+  DisputeBatch? _selectedBatch;
+  DisputeTrxn? _selectedTrxn;
+  late PlutoGridStateManager _gridStateManager;
+
+  // Selected item form controllers (CBS T24 style bottom pane)
+  final _accountController = TextEditingController();
+  final _valueDateController = TextEditingController();
+  final _amountController = TextEditingController();
+  final _txnCodeController = TextEditingController();
+  final _narrative1Controller = TextEditingController();
+  final _narrative2Controller = TextEditingController();
+  final _customerController = TextEditingController();
+  final _accountOfficerController = TextEditingController();
+  final _categoryController = TextEditingController();
+  final _ourRefController = TextEditingController();
+  String _selectedDebitCredit = 'D';
+
+  final TextEditingController _rejectionReasonController = TextEditingController();
 
   @override
   void dispose() {
-    _isFileViewerVisible.dispose();
+    _accountController.dispose();
+    _valueDateController.dispose();
+    _amountController.dispose();
+    _txnCodeController.dispose();
+    _narrative1Controller.dispose();
+    _narrative2Controller.dispose();
+    _customerController.dispose();
+    _accountOfficerController.dispose();
+    _categoryController.dispose();
+    _ourRefController.dispose();
+    _rejectionReasonController.dispose();
     super.dispose();
   }
-  @override
-  Widget build(BuildContext context) {
-    final bool isDesktop = MediaQuery.of(context).size.width > 900;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF003366),
-        foregroundColor: Colors.white,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          tooltip: 'Back to Dashboard',
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            } else {
-              Navigator.pushReplacementNamed(context, '/');
-            }
-          },
-        ),
-        title: const Text(
-          "Dispute Management - Checker Portal",
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-      ),
-      backgroundColor: const Color(0xFFF0F4F7),
-      body: Stack(
-        children: [
-          SafeArea(
-            child: isDesktop
-                ? const DesktopCheckerLayout()
-                : const MobileCheckerLayout(),
+
+  void _populateFormWithTrxn(DisputeTrxn trxn) {
+    setState(() {
+      _selectedTrxn = trxn;
+      _accountController.text = trxn.effectiveAccount;
+      _valueDateController.text = trxn.valueDate.isNotEmpty ? trxn.valueDate : DateFormat('dd MMM yyyy').format(DateTime.now()).toUpperCase();
+      _amountController.text = NumberFormat('#,##0.00').format(trxn.amount);
+      _txnCodeController.text = trxn.txnCode;
+      _narrative1Controller.text = trxn.narrative1;
+      _narrative2Controller.text = trxn.narrative2;
+      _customerController.text = trxn.customer;
+      _accountOfficerController.text = trxn.accountOfficer;
+      _categoryController.text = trxn.category;
+      _ourRefController.text = trxn.ourReference;
+      _selectedDebitCredit = trxn.type;
+    });
+  }
+
+  Future<void> _authorizeBatch() async {
+    if (_selectedBatch == null || _selectedBatch!.objectId == null) return;
+
+    if (!_selectedBatch!.isBalanced) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          title: Row(
+            children: const [
+              Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 28),
+              SizedBox(width: 10),
+              Text('Out of Balance Warning'),
+            ],
           ),
-          ValueListenableBuilder<bool>(
-            valueListenable: _isFileViewerVisible,
-            builder: (context, isVisible, _) {
-              if (!isVisible) return const SizedBox.shrink();
-              return Positioned(
-                bottom: 60,
-                right: 20,
-                width: isDesktop ? 400 : MediaQuery.of(context).size.width * 0.9,
-                child: FileViewerModal(
-                  title: _selectedFileViewTitle,
-                  fileBytes: _selectedFileBytes,
-                  onClose: () => _isFileViewerVisible.value = false,
-                ),
-              );
+          content: const Text(
+            'The total Debits and Credits in this batch do not balance! Are you sure you want to authorize this batch?',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Authorize Anyway', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
+    try {
+      await ref
+          .read(disputeBatchesNotifierProvider.notifier)
+          .authorizeBatch(batchObjectId: _selectedBatch!.objectId!);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Batch ${_selectedBatch!.batchNumber} AUTHORIZED successfully.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {
+          _selectedBatch = null;
+          _selectedTrxn = null;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Authorization error: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _showRejectDialog() {
+    if (_selectedBatch == null || _selectedBatch!.objectId == null) return;
+    _rejectionReasonController.clear();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: const [
+            Icon(Icons.cancel_outlined, color: Colors.red),
+            SizedBox(width: 10),
+            Text('Reject / Send for Correction', style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Batch / Ticket ID: ${_selectedBatch!.batchNumber}',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: CboColors.primaryBlue)),
+            const SizedBox(height: 12),
+            const Text('Enter correction comments / rejection reason (Required):',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _rejectionReasonController,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: 'e.g., Credit and Debit out of balance by ETB 1,000. Please verify account ETB1764400020478...',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                fillColor: const Color(0xFFF9FBFD),
+                filled: true,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final comment = _rejectionReasonController.text.trim();
+              if (comment.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a comment for Maker correction.')),
+                );
+                return;
+              }
+              Navigator.pop(ctx);
+              try {
+                await ref
+                    .read(disputeBatchesNotifierProvider.notifier)
+                    .rejectBatch(
+                      batchObjectId: _selectedBatch!.objectId!,
+                      comment: comment,
+                    );
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Batch ${_selectedBatch!.batchNumber} REJECTED with correction comment.'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                  setState(() {
+                    _selectedBatch = null;
+                    _selectedTrxn = null;
+                  });
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Rejection error: $e'), backgroundColor: Colors.red),
+                  );
+                }
+              }
             },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Confirm Rejection', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
-      bottomNavigationBar: isDesktop ? null : const MobileBottomActions(),
     );
   }
 
-  // Modified to handle both dynamically loaded bytes or local assets
-  Future<void> _onFileViewRequested(String fileName, [Uint8List? fileBytes]) async {
-    Uint8List? bytesToDisplay = fileBytes;
-
-    String targetFileName = fileName.isEmpty ? 'dispconf.pdf' : fileName;
-    if (targetFileName == 'Conf703101.pdf') {
-      targetFileName = 'dispconf.pdf';
-    }
-
-    if (bytesToDisplay == null) {
-      try {
-        final byteData = await rootBundle.load('assets/$targetFileName');
-        bytesToDisplay = byteData.buffer.asUint8List();
-      } catch (e) {
-        // Fallback to myej file if the format fails or if it's treated as a generic text asset
-        try {
-          final textByteData = await rootBundle.load('assets/myej');
-          bytesToDisplay = textByteData.buffer.asUint8List();
-          targetFileName = 'myej';
-        } catch (fallbackError) {
-          print('Asset file $targetFileName not found: $fallbackError');
-        }
-      }
-    }
-
-    setState(() {
-      _selectedFileViewTitle = 'File Viewer: $targetFileName';
-      _selectedFileBytes = bytesToDisplay;
-    });
-    _isFileViewerVisible.value = true;
-  }
-}
-
-class DesktopCheckerLayout extends StatelessWidget {
-  const DesktopCheckerLayout({super.key});
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const HeaderBar(),
-        const TabBarHeader(),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Card(
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+    final batchesAsync = ref.watch(disputeBatchesNotifierProvider);
+    final currentUser = ref.watch(currentUserProvider);
+
+    return ResponsiveShell(
+      currentRoute: '/dispute_checker',
+      title: 'Dispute Management - Checker Portal',
+      subtitle: 'Inspect itemized DC transactions, verify debit/credit balance, authorize or request corrections',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+          tooltip: 'Refresh',
+          onPressed: () => ref.read(disputeBatchesNotifierProvider.notifier).refresh(),
+        ),
+      ],
+      body: batchesAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Error loading batches: $err')),
+        data: (batches) {
+          // If no batch is selected, show list of batches ready for Checker review
+          if (_selectedBatch == null) {
+            return _buildBatchSelectionList(batches, currentUser?.username);
+          }
+
+          // Otherwise show the CBS T24 Master-Detail View
+          return _buildCbsMasterDetailView(_selectedBatch!);
+        },
+      ),
+    );
+  }
+
+  Widget _buildBatchSelectionList(List<DisputeBatch> batches, String? currentUsername) {
+    final fmt = NumberFormat('#,##0.00');
+
+    // Checkers can view all batches or those assigned to them
+    final assignedToMe = batches.where((b) =>
+        b.assignedTo == currentUsername ||
+        b.status == 'ASSIGNED' ||
+        b.status == 'NEW').toList();
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GlassCard(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('Pending Transactions for Authorization',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
-                        Text('Status: Updated 1 second ago',
-                            style: TextStyle(color: Colors.grey)),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: CboColors.primaryBlue.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.fact_check_rounded, color: CboColors.primaryBlue, size: 32),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Dispute Review & Authorization Queue',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: CboColors.primaryBlue),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Select any assigned Dispute Batch below to open the CBS T24 Master-Detail inspection view and verify debit/credit balance.',
+                          style: TextStyle(fontSize: 13, color: Colors.black87),
+                        ),
                       ],
                     ),
                   ),
-                  const Divider(height: 1),
-                  Expanded(
-                    child: PlutoGridManagerWidget(
-                      onFileViewRequested: (fileName, [bytes]) {
-                        context
-                            .findAncestorStateOfType<_CheckerPanelScreenState>()
-                            ?._onFileViewRequested(fileName, bytes);
-                      },
-                    ),
-                  ),
-                  const Divider(height: 1),
-                  const MobileBottomActions(),
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 20),
+
+          if (assignedToMe.isEmpty)
+            Container(
+              height: 250,
+              alignment: Alignment.center,
+              child: const Text('No batches awaiting review for your account.',
+                  style: TextStyle(color: Colors.grey, fontSize: 16)),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: assignedToMe.length,
+              itemBuilder: (context, index) {
+                final b = assignedToMe[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: b.isBalanced ? Colors.green.shade200 : Colors.red.shade200,
+                    ),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    leading: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: (b.isBalanced ? Colors.green : Colors.red).withOpacity(0.1),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        b.isBalanced ? Icons.check_circle_outline : Icons.error_outline,
+                        color: b.isBalanced ? Colors.green : Colors.red,
+                      ),
+                    ),
+                    title: Row(
+                      children: [
+                        Text(b.batchNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                        const SizedBox(width: 10),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: b.isBalanced ? Colors.green.shade50 : Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            b.isBalanced ? 'Balanced' : 'Out of Balance',
+                            style: TextStyle(
+                              color: b.isBalanced ? Colors.green.shade800 : Colors.red.shade800,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    subtitle: Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Text(
+                        'Maker: ${b.madeBy} | Items: ${b.transactionCount} | DR: ETB ${fmt.format(b.totalDebitAmount)} | CR: ETB ${fmt.format(b.totalCreditAmount)} | Status: ${b.status}',
+                      ),
+                    ),
+                    trailing: ElevatedButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          _selectedBatch = b;
+                        });
+                      },
+                      icon: const Icon(Icons.open_in_new_rounded, size: 16, color: Colors.white),
+                      label: const Text('Open in CBS Grid', style: TextStyle(color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: CboColors.primaryBlue,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCbsMasterDetailView(DisputeBatch batch) {
+    final trxnAsync = ref.watch(batchTransactionsProvider(batch.objectId ?? batch.batchNumber));
+    final fmt = NumberFormat('#,##0.00');
+
+    return Column(
+      children: [
+        // Top T24 Action Toolbar & Batch Header
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: const Color(0xFF003366),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                tooltip: 'Back to Batch Queue',
+                onPressed: () {
+                  setState(() {
+                    _selectedBatch = null;
+                    _selectedTrxn = null;
+                  });
+                },
+              ),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Amend Journal - Head Office - R22 [${batch.batchNumber}]',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  Text(
+                    'Maker: ${batch.madeBy} | Count: ${batch.transactionCount} transactions | Status: ${batch.status}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  ),
+                ],
+              ),
+              const Spacer(),
+
+              // Balance Chip
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: batch.isBalanced ? Colors.green.shade800 : Colors.red.shade800,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Icon(batch.isBalanced ? Icons.check : Icons.warning_amber, color: Colors.white, size: 16),
+                    const SizedBox(width: 6),
+                    Text(
+                      'DR: ${fmt.format(batch.totalDebitAmount)} | CR: ${fmt.format(batch.totalCreditAmount)}',
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 14),
+
+              // Checker Actions: Reject & Authorize
+              OutlinedButton.icon(
+                onPressed: _showRejectDialog,
+                icon: const Icon(Icons.cancel_outlined, color: Colors.redAccent, size: 16),
+                label: const Text('Reject / Correction', style: TextStyle(color: Colors.redAccent)),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.redAccent),
+                  backgroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton.icon(
+                onPressed: _authorizeBatch,
+                icon: const Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+                label: const Text('Authorize / Approve', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green.shade700,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Split View: Top Grid (CBS T24 Table) + Bottom Details Form
+        Expanded(
+          child: trxnAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error loading transactions: $err')),
+            data: (transactions) {
+              if (transactions.isEmpty) {
+                return const Center(child: Text('No transaction records in this batch'));
+              }
+
+              // Default select first item if none selected
+              if (_selectedTrxn == null && transactions.isNotEmpty) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _populateFormWithTrxn(transactions.first);
+                });
+              }
+
+              return Column(
+                children: [
+                  // Top PlutoGrid: Matching CBS BrowserServlet table
+                  Expanded(
+                    flex: 5,
+                    child: PlutoGrid(
+                      columns: [
+                        PlutoColumn(
+                          title: 'Transaction ID',
+                          field: 'transactionId',
+                          type: PlutoColumnType.text(),
+                          width: 180,
+                        ),
+                        PlutoColumn(
+                          title: 'Customer',
+                          field: 'customer',
+                          type: PlutoColumnType.text(),
+                          width: 120,
+                        ),
+                        PlutoColumn(
+                          title: 'Name',
+                          field: 'name',
+                          type: PlutoColumnType.text(),
+                          width: 140,
+                        ),
+                        PlutoColumn(
+                          title: 'Amount LCY',
+                          field: 'amountLcy',
+                          type: PlutoColumnType.currency(symbol: 'ETB '),
+                          width: 140,
+                        ),
+                        PlutoColumn(
+                          title: 'Amount FCY',
+                          field: 'amountFcy',
+                          type: PlutoColumnType.number(),
+                          width: 110,
+                        ),
+                        PlutoColumn(
+                          title: 'Value Date',
+                          field: 'valueDate',
+                          type: PlutoColumnType.text(),
+                          width: 120,
+                        ),
+                        PlutoColumn(
+                          title: 'Record Status',
+                          field: 'recordStatus',
+                          type: PlutoColumnType.text(),
+                          width: 120,
+                        ),
+                      ],
+                      rows: transactions.map((t) {
+                        return PlutoRow(
+                          cells: {
+                            'transactionId': PlutoCell(value: t.transactionId),
+                            'customer': PlutoCell(value: t.customer),
+                            'name': PlutoCell(value: t.name),
+                            'amountLcy': PlutoCell(value: t.amount),
+                            'amountFcy': PlutoCell(value: 0),
+                            'valueDate': PlutoCell(value: t.valueDate.isNotEmpty ? t.valueDate : '20260827'),
+                            'recordStatus': PlutoCell(value: t.recordStatus),
+                          },
+                        );
+                      }).toList(),
+                      onLoaded: (event) {
+                        _gridStateManager = event.stateManager;
+                        _gridStateManager.setShowColumnFilter(true);
+                      },
+                      onRowChecked: (event) {
+                        final row = event.row;
+                        if (row != null) {
+                          final txnId = row.cells['transactionId']?.value.toString();
+                          final match = transactions.firstWhere((element) => element.transactionId == txnId,
+                              orElse: () => transactions.first);
+                          _populateFormWithTrxn(match);
+                        }
+                      },
+                      onSelected: (event) {
+                        final row = event.row;
+                        if (row != null) {
+                          final txnId = row.cells['transactionId']?.value.toString();
+                          final match = transactions.firstWhere((element) => element.transactionId == txnId,
+                              orElse: () => transactions.first);
+                          _populateFormWithTrxn(match);
+                        }
+                      },
+                    ),
+                  ),
+
+                  // Bottom Form: CBS T24 / Temenos Inspection Panel
+                  Expanded(
+                    flex: 5,
+                    child: _buildCbsBottomForm(batch),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCbsBottomForm(DisputeBatch batch) {
+    final trxn = _selectedTrxn;
+
+    return Container(
+      color: const Color(0xFFF7F9FC),
+      child: Column(
+        children: [
+          // Sub-Header Bar (Amend DC... Head Office)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            color: const Color(0xFFE2EBF4),
+            child: Row(
+              children: [
+                Text(
+                  'Amend  ${trxn?.transactionId ?? batch.batchNumber}  LCY DR/CR FCY (Head Office)',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF003366)),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    border: Border.all(color: Colors.red.shade300),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    '? ID=: PREVIOUS USERS WORK WILL BE LOST',
+                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Form Tab bar: Amend | Audit
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+              child: Column(
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Field 1: Account
+                      Expanded(
+                        flex: 4,
+                        child: _buildCbsFormField(
+                          label: 'Account',
+                          controller: _accountController,
+                          suffixIcon: Icons.search,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Field 2: Value Date
+                      Expanded(
+                        flex: 3,
+                        child: _buildCbsFormField(
+                          label: 'Value Date',
+                          controller: _valueDateController,
+                          suffixIcon: Icons.calendar_today,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Field 3: Debit / Credit
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Debit / Credit *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                ChoiceChip(
+                                  label: const Text('C (Credit)'),
+                                  selected: _selectedDebitCredit == 'C',
+                                  onSelected: (selected) {
+                                    if (selected) setState(() => _selectedDebitCredit = 'C');
+                                  },
+                                ),
+                                const SizedBox(width: 8),
+                                ChoiceChip(
+                                  label: const Text('D (Debit)'),
+                                  selected: _selectedDebitCredit == 'D',
+                                  onSelected: (selected) {
+                                    if (selected) setState(() => _selectedDebitCredit = 'D');
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  Row(
+                    children: [
+                      // Field 4: Lcy Amount
+                      Expanded(
+                        flex: 4,
+                        child: _buildCbsFormField(
+                          label: 'Lcy Amount',
+                          controller: _amountController,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Field 5: Transaction Cde
+                      Expanded(
+                        flex: 3,
+                        child: _buildCbsFormField(
+                          label: 'Transaction Cde *',
+                          controller: _txnCodeController,
+                          helperText: _selectedDebitCredit == 'D' ? 'Miscellaneous Debits' : 'Miscellaneous Credits',
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Field 6: Currency & Position Type
+                      Expanded(
+                        flex: 3,
+                        child: _buildCbsFormField(
+                          label: 'Currency / Pos',
+                          controller: TextEditingController(text: 'ETB / TR'),
+                          readOnly: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  Row(
+                    children: [
+                      // Field 7: Narrative 1
+                      Expanded(
+                        child: _buildCbsFormField(
+                          label: 'Narrative.1',
+                          controller: _narrative1Controller,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Field 8: Narrative 2
+                      Expanded(
+                        child: _buildCbsFormField(
+                          label: 'Narrative.2',
+                          controller: _narrative2Controller,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCbsFormField({
+    required String label,
+    required TextEditingController controller,
+    String? helperText,
+    IconData? suffixIcon,
+    bool readOnly = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
+        const SizedBox(height: 4),
+        TextField(
+          controller: controller,
+          readOnly: readOnly,
+          style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(4), borderSide: BorderSide(color: Colors.grey.shade400)),
+            fillColor: readOnly ? Colors.grey.shade100 : Colors.white,
+            filled: true,
+            suffixIcon: suffixIcon != null ? Icon(suffixIcon, size: 16) : null,
+            helperText: helperText,
+            helperStyle: const TextStyle(fontSize: 10, color: Colors.grey),
           ),
         ),
       ],
     );
   }
 }
-
-class HeaderBar extends StatelessWidget {
-  const HeaderBar({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: const BoxDecoration(
-          color: Color(0xFFEBEFF2),
-          border: Border(bottom: BorderSide(color: Color(0xFFDDE1E4)))),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          Text(DateFormat('EEEE, MMMM d, yyyy').format(DateTime.now()),
-              style: const TextStyle(fontSize: 12, color: Colors.grey)),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: () {},
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.grey, width: 0.5),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              minimumSize: const Size(0, 0),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-            ),
-            child: const Text('Log Out',
-                style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class TabBarHeader extends StatelessWidget {
-  const TabBarHeader({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Colors.white,
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              TabButton(title: 'Checker Panel', isSelected: true),
-              SizedBox(width: 4),
-              TabButton(title: 'Auditor Dashboard', isSelected: false),
-              SizedBox(width: 4),
-              TabButton(title: 'Manager Overview', isSelected: false),
-            ],
-          ),
-          Text('Logged in as: Checker',
-              style: TextStyle(fontSize: 12, color: Colors.grey)),
-        ],
-      ),
-    );
-  }
-}
-
-class TabButton extends StatelessWidget {
-  final String title;
-  final bool isSelected;
-  const TabButton({super.key, required this.title, required this.isSelected});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: isSelected ? Colors.white : const Color(0xFFF4F6F8),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: const Color(0xFFDCE1E6)),
-      ),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontSize: 14,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-          color: isSelected ? Colors.black : Colors.black87,
-        ),
-      ),
-    );
-  }
-}
-
-class PlutoGridManagerWidget extends StatefulWidget {
-  final Function(String, [Uint8List?]) onFileViewRequested;
-  const PlutoGridManagerWidget({super.key, required this.onFileViewRequested});
-
-  @override
-  State<PlutoGridManagerWidget> createState() => _PlutoGridManagerWidgetState();
-}
-
-class _PlutoGridManagerWidgetState extends State<PlutoGridManagerWidget> {
-  final List<PlutoColumn> columns = [];
-  final List<PlutoRow> rows = [];
-  PlutoGridStateManager? stateManager;
-
-  @override
-  void initState() {
-    super.initState();
-    _buildColumns();
-    _buildRows();
-  }
-
-  void _buildColumns() {
-    columns.addAll([
-      PlutoColumn(
-        title: 'Role',
-        field: 'role',
-        type: PlutoColumnType.select(<String>['Maker', 'Checker', 'Auditor', 'Manager']),
-        width: 120,
-        enableEditingMode: true,
-      ),
-      PlutoColumn(
-        title: '',
-        field: 'select',
-        type: PlutoColumnType.select(<String>[]),
-        width: 40,
-        enableEditingMode: true,
-      ),
-      PlutoColumn(
-        title: 'TraxnID',
-        field: 'traxnid',
-        type: PlutoColumnType.text(),
-        width: 80,
-      ),
-      PlutoColumn(
-        title: 'Subject',
-        field: 'subject',
-        type: PlutoColumnType.text(),
-        width: 150,
-      ),
-      PlutoColumn(
-        title: 'ATMType',
-        field: 'atmtype',
-        type: PlutoColumnType.text(),
-        width: 80,
-      ),
-      PlutoColumn(
-        title: 'TerminalCode',
-        field: 'terminalcode',
-        type: PlutoColumnType.text(),
-        width: 100,
-      ),
-      PlutoColumn(
-        title: 'DebitAcc',
-        field: 'debitacc',
-        type: PlutoColumnType.text(),
-        width: 100,
-      ),
-      PlutoColumn(
-        title: 'Amount',
-        field: 'amount',
-        type: PlutoColumnType.currency(symbol: '\$'),
-        width: 100,
-      ),
-      PlutoColumn(
-        title: 'CreditAcc',
-        field: 'creditacc',
-        type: PlutoColumnType.text(),
-        width: 100,
-      ),
-      PlutoColumn(
-        title: 'TraxnDate',
-        field: 'traxndate',
-        type: PlutoColumnType.date(format: 'M/d/yyyy h:mm a'),
-        width: 150,
-      ),
-      PlutoColumn(
-        title: 'Maker_Uname',
-        field: 'maker',
-        type: PlutoColumnType.text(),
-        width: 100,
-      ),
-      // Here is the non-icon text button mapping
-      PlutoColumn(
-        title: 'EJ',
-        field: 'ej_file_view',
-        type: PlutoColumnType.text(),
-        width: 60,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          final cellValue = rendererContext.cell.value.toString();
-          return InkWell(
-            onTap: cellValue.isNotEmpty
-                ? () => widget.onFileViewRequested(cellValue)
-                : null,
-            child: Center(
-              child: Text(
-                cellValue,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: cellValue.isNotEmpty ? Colors.blue : Colors.black87,
-                  decoration: cellValue.isNotEmpty ? TextDecoration.underline : null,
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-      _buildFileViewColumn('EJ File', 'ej_file_icon'),
-      PlutoColumn(
-        title: 'Confirmation File',
-        field: 'confirm_file',
-        type: PlutoColumnType.text(),
-        width: 120,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          final cellValue = rendererContext.cell.value.toString();
-          if (cellValue.isEmpty) return const SizedBox.shrink();
-
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.description_outlined, size: 16, color: Colors.blue),
-              const SizedBox(width: 4),
-              TextButton(
-                onPressed: () {
-                  widget.onFileViewRequested(cellValue);
-                },
-                child: const Text('View', style: TextStyle(fontSize: 10, color: Colors.blue)),
-              ),
-            ],
-          );
-        },
-      ),
-      _buildFileViewColumn('debitCreditRecite File', 'receipt_file'),
-    ]);
-  }
-
-  PlutoColumn _buildFileViewColumn(String title, String field,
-      {bool isIcon = true, double width = 80}) {
-    return PlutoColumn(
-        title: title,
-        field: field,
-        type: PlutoColumnType.text(),
-        width: width,
-        enableEditingMode: false,
-        renderer: (rendererContext) {
-          if (isIcon) {
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.description_outlined,
-                    size: 16, color: Colors.blue),
-                const SizedBox(width: 4),
-                TextButton(
-                  onPressed: () => widget
-                      .onFileViewRequested(rendererContext.cell.value.toString()),
-                  style: TextButton.styleFrom(
-                      minimumSize: const Size(0, 0),
-                      padding: EdgeInsets.zero,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                  child: const Text('View',
-                      style: TextStyle(fontSize: 10, color: Colors.blue)),
-                ),
-              ],
-            );
-          } else {
-            return Center(
-              child: Text(rendererContext.cell.value.toString(),
-                  style: const TextStyle(fontSize: 10)),
-            );
-          }
-        });
-  }
-
-  void _buildRows() {
-    final mockData = [
-      {'id': '703101', 'amt': 155.00, 'date': DateTime(2026, 5, 1, 0, 0)},
-      {'id': '702012', 'amt': 170.00, 'date': DateTime(2026, 5, 1, 0, 50)},
-      {'id': '702302', 'amt': 75.00, 'date': DateTime(2026, 5, 1, 0, 0)},
-      {'id': '703302', 'amt': 75.00, 'date': DateTime(2026, 5, 1, 0, 0)},
-      {'id': '702394', 'amt': 25.00, 'date': DateTime(2026, 5, 1, 0, 0)},
-    ];
-
-    for (var i = 0; i < mockData.length; i++) {
-      final data = mockData[i];
-      final idText = data['id'] as String;
-      final traxnDateTextDate = DateFormat('M/d/yyyy h:mm a').format(data['date'] as DateTime);
-
-      rows.add(PlutoRow(cells: {
-        'role': PlutoCell(value: 'Checker'),
-        'select': PlutoCell(value: i == 0),
-        'traxnid': PlutoCell(value: idText),
-        'subject': PlutoCell(value: 'ATM Short-Cash Dispute'),
-        'atmtype': PlutoCell(value: 'ATM'),
-        'terminalcode': PlutoCell(value: i < 2 ? '7001' : '7002'),
-        'debitacc': PlutoCell(value: i < 2 ? '00000C1' : '00009C1'),
-        'amount': PlutoCell(value: data['amt'] as double),
-        'creditacc': PlutoCell(value: i < 2 ? '00008C2' : '0000RC2'),
-        'traxndate': PlutoCell(value: traxnDateTextDate),
-        'maker': PlutoCell(value: 'Checker'),
-        'ej_file_view': PlutoCell(value: i < 3 ? 'View' : ''), // Displays clickable "View" on text column
-        'ej_file_icon': PlutoCell(value: i < 3 ? 'EJ$idText.txt' : ''),
-        'confirm_file': PlutoCell(value: i == 0 ? 'Conf$idText.pdf' : ''),
-        'receipt_file': PlutoCell(value: i < 1 ? 'Receipt$idText.png' : ''),
-      }));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PlutoGrid(
-      columns: columns,
-      rows: rows,
-      onChanged: (PlutoGridOnChangedEvent event) {
-        if (event.column.field == 'select') {
-          print('Row selected: ${event.value}');
-        }
-      },
-      onLoaded: (PlutoGridOnLoadedEvent event) {
-        stateManager = event.stateManager;
-        stateManager!.setSelectingMode(PlutoGridSelectingMode.row);
-        stateManager!.setShowColumnFilter(true);
-      },
-      configuration: const PlutoGridConfiguration(
-        style: PlutoGridStyleConfig(
-          gridBorderColor: Color(0xFFDCE1E6),
-          columnHeight: 40,
-          rowHeight: 32,
-          defaultCellPadding: EdgeInsets.all(4),
-          cellTextStyle: TextStyle(fontSize: 10, color: Colors.black87),
-          columnTextStyle:
-          TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black),
-          oddRowColor: Color(0xFFF9FAFB),
-          evenRowColor: Colors.white,
-          activatedColor: Color(0xFFD0E1F0),
-        ),
-      ),
-    );
-  }
-}
-
-class FileViewerModal extends StatefulWidget {
-  final String title;
-  final Uint8List? fileBytes;
-  final VoidCallback onClose;
-
-  const FileViewerModal({super.key, required this.title, this.fileBytes, required this.onClose});
-
-  @override
-  State<FileViewerModal> createState() => _FileViewerModalState();
-}
-
-class _FileViewerModalState extends State<FileViewerModal> {
-  // Use a string to check if the asset is text vs PDF
-  bool _isTextFile = false;
-  String _textContent = '';
-  PdfDocument? _document;
-  PdfPageImage? _pageImage;
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _handleFileDisplay();
-  }
-
-  Future<void> _handleFileDisplay() async {
-    if (widget.fileBytes != null) {
-      if (widget.title.contains('myej')) {
-        setState(() {
-          _textContent = String.fromCharCodes(widget.fileBytes!);
-          _isTextFile = true;
-          _isLoading = false;
-        });
-      } else {
-        await _loadPdfFromBytes(widget.fileBytes!);
-      }
-    } else {
-      setState(() {
-        _isLoading = false;
-      });
-    }
-  }
-
-  Future<void> _loadPdfFromBytes(Uint8List bytes) async {
-    try {
-      _document = await PdfDocument.openData(bytes);
-      final page = await _document!.getPage(1);
-      final pageImage = await page.render(
-        width: page.width,
-        height: page.height,
-        format: PdfPageImageFormat.jpeg,
-      );
-
-      setState(() {
-        _pageImage = pageImage;
-        _isTextFile = false;
-        _isLoading = false;
-      });
-      await page.close();
-    } catch (e) {
-      setState(() {
-        _isTextFile = false;
-        _isLoading = false;
-      });
-      print('Error parsing PDF: $e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 350,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: const [
-          BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))
-        ],
-        border: Border.all(color: const Color(0xFFBCC6CC)),
-      ),
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(
-              color: Color(0xFFEBEFF2),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.description, size: 18, color: Colors.blue),
-                const SizedBox(width: 8),
-                Expanded(
-                    child: Text(widget.title,
-                        style: const TextStyle(
-                            fontSize: 13, fontWeight: FontWeight.bold))),
-                InkWell(
-                  onTap: widget.onClose,
-                  child: const Icon(Icons.close, size: 18, color: Colors.grey),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _isTextFile
-                ? SingleChildScrollView(
-              padding: const EdgeInsets.all(8.0),
-              child: Text(
-                _textContent,
-                style: const TextStyle(
-                    fontFamily: 'monospace', fontSize: 10, color: Colors.black87),
-              ),
-            )
-                : _pageImage != null
-                ? InteractiveViewer(
-              child: Image.memory(_pageImage!.bytes),
-            )
-                : const Padding(
-              padding: EdgeInsets.all(16.0),
-              child: Center(
-                child: Text('Confirmation Document loaded for verification.'),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class MobileBottomActions extends StatelessWidget {
-  const MobileBottomActions({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text('Upload Files',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(height: 8),
-            Container(
-              height: 100,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF9FAFB),
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: const Color(0xFFDCE1E6), width: 1),
-              ),
-              child: const Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.drive_folder_upload, size: 28, color: Colors.grey),
-                    SizedBox(height: 8),
-                    Text('Drag-and drop',
-                        style: TextStyle(fontSize: 12, color: Colors.black87)),
-                    Text('CSV, Excel, PDF, PNG, JPG, TXT',
-                        style: TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Text('Status: Updated 1 second ago',
-                    style: TextStyle(color: Colors.grey, fontSize: 10)),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class MobileCheckerLayout extends StatelessWidget {
-  const MobileCheckerLayout({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(child: Text('Mobile Layout Placeholder - Simplified'));
-  }
-}
-//flutter pub add parse_server_sdk_flutter
-//flutter pub get

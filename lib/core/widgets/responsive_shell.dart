@@ -132,6 +132,14 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
       allowedRoles: [UserRole.admin, UserRole.maker],
     ),
     NavItemData(
+      title: 'Dispute Manager (Assign)',
+      icon: Icons.assignment_turned_in_rounded,
+      route: '/dispute_manager',
+      category: 'Disputes & Governance',
+      badge: 'Manager',
+      allowedRoles: [UserRole.admin, UserRole.manager],
+    ),
+    NavItemData(
       title: 'Checker Approval Panel',
       icon: Icons.fact_check_rounded,
       route: '/dispute_checker',
@@ -154,6 +162,14 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
       category: 'Disputes & Governance',
       badge: 'GL',
       allowedRoles: [UserRole.admin, UserRole.maker],
+    ),
+    NavItemData(
+      title: 'Settlement Report Merger',
+      icon: Icons.merge_type_rounded,
+      route: '/report_merger',
+      category: 'Disputes & Governance',
+      badge: 'Fast Merge',
+      allowedRoles: [UserRole.admin, UserRole.maker, UserRole.checker, UserRole.auditor, UserRole.manager],
     ),
     // Risk & Utilities
     NavItemData(
