@@ -5,6 +5,7 @@ import 'package:pluto_grid/pluto_grid.dart';
 import '../../../../core/constants/cbo_colors.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_shell.dart';
+import '../../../../core/widgets/guided_recon_modal.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/model/dispute_batch_model.dart';
 import '../../data/model/transaction_model.dart';
@@ -224,6 +225,22 @@ class _CheckerPanelScreenState extends ConsumerState<CheckerPanelScreen> {
       title: 'Dispute Management - Checker Portal',
       subtitle: 'Inspect itemized DC transactions, verify debit/credit balance, authorize or request corrections',
       actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline_rounded, color: Colors.white),
+          tooltip: 'Operation Guide',
+          onPressed: () {
+            GuidedReconModal.show(
+              context,
+              moduleTitle: 'Dispute Management - Checker Guide',
+              modulePurpose: 'Inspect itemized DC transactions, verify debit/credit balance, authorize or request corrections.',
+              steps: const [
+                ReconStepGuide(step: 1, title: 'Select Batch', format: 'List', description: 'Choose a batch assigned to you for review.'),
+                ReconStepGuide(step: 2, title: 'Inspect Items', format: 'T24 View', description: 'Review individual transaction line items and match total debits with credits.'),
+                ReconStepGuide(step: 3, title: 'Authorize or Reject', format: 'Action', description: 'Authorize the batch for settlement or reject it with correction comments.'),
+              ],
+            );
+          },
+        ),
         IconButton(
           icon: const Icon(Icons.refresh_rounded, color: Colors.white),
           tooltip: 'Refresh',

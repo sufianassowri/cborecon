@@ -10,6 +10,8 @@ import 'package:pluto_grid/pluto_grid.dart';
 import '../providers/reconciliation_provider.dart';
 import '../../domain/usecases/negative_balance_warning.dart';
 import '../../../../core/widgets/responsive_shell.dart';
+import '../../../../core/widgets/guided_recon_modal.dart';
+import 'tsv_batch_converter.dart';
 
 class ReconciliationDataGrid extends ConsumerStatefulWidget {
   const ReconciliationDataGrid({super.key});
@@ -474,10 +476,49 @@ class _ReconciliationDataGridState
 
     return ResponsiveShell(
       currentRoute: '/mastercard_reconciliation',
-      title: 'Mastercard Ledger Recon',
-      subtitle: 'Back4App MasterCard Ledger Matrix & TopUp Tracker',
-      body: accountsState.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+      title: 'Mastercard Hub & Recon',
+      subtitle: 'Back4App MasterCard Ledger Matrix & TSV Processor',
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline_rounded, color: Colors.white),
+          tooltip: 'Operation Guide',
+          onPressed: () {
+            GuidedReconModal.show(
+              context,
+              moduleTitle: 'Mastercard Hub & Recon Guide',
+              modulePurpose: 'Ledger reconciliation and bulk TSV processing for MasterCard settlements.',
+              steps: const [
+                ReconStepGuide(step: 1, title: 'Upload Database Ledger', format: 'File', description: 'Upload MasterCard database extracts for automated matrix analysis.'),
+                ReconStepGuide(step: 2, title: 'Process TSV Files', format: 'Bulk', description: 'Switch to the TSV converter tab to convert bulk files to standard format.'),
+                ReconStepGuide(step: 3, title: 'Reconcile Negative Balances', format: 'Matrix', description: 'Approve or handle client accounts showing negative balances.'),
+              ],
+            );
+          },
+        ),
+      ],
+      body: DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            Container(
+              color: Colors.white,
+              child: const TabBar(
+                isScrollable: true,
+                labelColor: Colors.blueAccent,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Colors.blueAccent,
+                tabs: [
+                  Tab(text: 'Ledger Recon (Database)'),
+                  Tab(text: 'Bulk TSV Converter'),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                physics: const NeverScrollableScrollPhysics(), // Prevent swipe interference with data grid
+                children: [
+                  accountsState.when(
+                    loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
           child: SelectableText(
             'Error loading accounts: $err',
@@ -766,6 +807,13 @@ class _ReconciliationDataGridState
             ],
           );
         },
+                  ),
+                  const TsvBatchConverter(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

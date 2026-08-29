@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:cborecon/features/report_merger/domain/entities/settlement_row_entity.dart';
+
 import 'package:cborecon/features/report_merger/domain/services/settlement_merger_engine.dart';
 
 void main() {

@@ -268,17 +268,20 @@ class ReconcileDeclinedUseCase {
         double excessDebit = 0.0;
         double atmDebit = 0.0;
 
-        if (remaining >= 0) {
-          // If remaining >= 0, debit full amount from excess account
+        // ATM dispenses in multiples of 100, so we can only debit in multiples of 100 from excess
+        final double usableBalance = balance > 0 ? (balance / 100).floorToDouble() * 100 : 0.0;
+
+        if (usableBalance >= totalDeclined) {
+          // If usable balance is enough, debit full amount from excess account
           excessDebit = totalDeclined;
           atmDebit = 0.0;
         } else {
-          // If remaining < 0
-          if (balance > 0) {
-            excessDebit = balance;
-            atmDebit = totalDeclined - balance;
+          // If usable balance is not enough
+          if (usableBalance > 0) {
+            excessDebit = usableBalance;
+            atmDebit = totalDeclined - usableBalance;
           } else {
-            // Negative or 0 balance in excess -> debit full amount from ATM account
+            // No usable balance in excess -> debit full amount from ATM account
             excessDebit = 0.0;
             atmDebit = totalDeclined;
           }

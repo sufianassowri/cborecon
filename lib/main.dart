@@ -25,10 +25,9 @@ import 'features/disputes/presentation/screens/dispute_auditor_view.dart';
 import 'features/disputes/disputememo/presentation/views/dispute_memo_page.dart';
 import 'features/report_merger/presentation/pages/report_merger_page.dart';
 import 'features/remote_disputeutility/presentation/pages/remote_dispute_utility_page.dart';
-import 'features/master_card/tsv_processor_page.dart';
 import 'features/recon_declined/presentation/screens/recon_declined_dashboard.dart';
-import 'features/remote_dispute_identification/presentation/screens/remote_dispute_identification_dashboard.dart';
 import 'features/mastercard_reconciliation/presentation/widgets/reconciliation_data_grid.dart';
+import 'features/guide/presentation/pages/guide_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -101,13 +100,12 @@ class CboOmniReconApp extends ConsumerWidget {
         '/report_merger': (context) => const ReportMergerPage(),
         '/remote_dispute_utility': (context) =>
             const RemoteDisputeUtilityPage(),
-        '/mastercard_hub': (context) => const TsvProcessorPage(),
         '/mastercard_reconciliation': (context) =>
             const ReconciliationDataGrid(),
         '/recon_declined': (context) => const ReconDeclinedDashboard(),
         '/mastercard_recon': (context) => const ReconciliationDataGrid(),
-        '/remote_dispute_identification': (context) =>
-            const RemoteDisputeIdentificationDashboard(),
+        '/guide': (context) => const GuidePage(),
+
 
         // Backward-Compatibility Aliases
         '/pos': (context) => const CboTerminalReconPage(),

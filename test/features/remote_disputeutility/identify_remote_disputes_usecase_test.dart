@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:cborecon/features/remote_dispute_identification/domain/entities/remote_dispute_models.dart';
-import 'package:cborecon/features/remote_dispute_identification/domain/usecases/bank_name_matcher.dart';
-import 'package:cborecon/features/remote_dispute_identification/domain/usecases/identify_remote_disputes_usecase.dart';
+import 'package:cborecon/features/remote_disputeutility/domain/entities/remote_dispute_models.dart';
+import 'package:cborecon/features/remote_disputeutility/domain/usecases/bank_name_matcher.dart';
+import 'package:cborecon/features/remote_disputeutility/domain/usecases/identify_remote_disputes_usecase.dart';
 
 void main() {
   group('BankNameMatcher Tests', () {

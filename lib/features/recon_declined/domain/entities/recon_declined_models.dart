@@ -156,6 +156,20 @@ class UnmatchedDeclinedRecord {
   }
 }
 
+class DebitableAccountRecord {
+  final String debitAccount;
+  final double debitAmount;
+  final String accountType;
+  final String cardAccId;
+
+  const DebitableAccountRecord({
+    required this.debitAccount,
+    required this.debitAmount,
+    this.accountType = '',
+    this.cardAccId = '',
+  });
+}
+
 class ReconDeclinedResult {
   final List<MatchedDeclinedSettlement> matched;
   final List<UnmatchedExcessRecord> excessOnly;
@@ -174,6 +188,64 @@ class ReconDeclinedResult {
   int get totalMatchedCount => matched.length;
   int get totalExcessOnlyCount => excessOnly.length;
   int get totalDeclinedOnlyCount => declinedOnly.length;
+
+  static String _extractTerminalKey(String account) {
+    final clean = account.replaceAll(RegExp(r'[^0-9]'), '');
+    if (clean.length >= 5) {
+      return clean.substring(clean.length - 5);
+    }
+    if (clean.isNotEmpty) {
+      return clean.padLeft(5, '0');
+    }
+    return account.trim();
+  }
+
+  List<DebitableAccountRecord> get debitableAccounts {
+    final List<DebitableAccountRecord> list = [];
+    for (final m in matched) {
+      if (m.excessDebitAmount > 0) {
+        list.add(DebitableAccountRecord(
+          debitAccount: m.excessAccount,
+          debitAmount: m.excessDebitAmount,
+          accountType: 'Excess Account',
+          cardAccId: m.cardAccId,
+        ));
+      }
+      if (m.atmDebitAmount > 0) {
+        list.add(DebitableAccountRecord(
+          debitAccount: m.atmAccount,
+          debitAmount: m.atmDebitAmount,
+          accountType: 'ATM Account',
+          cardAccId: m.cardAccId,
+        ));
+      }
+    }
+
+    list.sort((a, b) {
+      final keyA = _extractTerminalKey(a.debitAccount);
+      final keyB = _extractTerminalKey(b.debitAccount);
+      final cmp = keyA.compareTo(keyB);
+      if (cmp != 0) return cmp;
+
+      // For the same terminal (same last 5 digits), sort Excess Account before ATM Account
+      final isAExcess = a.accountType.toLowerCase().contains('excess') ||
+          a.debitAccount.contains('1764');
+      final isBExcess = b.accountType.toLowerCase().contains('excess') ||
+          b.debitAccount.contains('1764');
+
+      if (isAExcess && !isBExcess) return -1;
+      if (!isAExcess && isBExcess) return 1;
+
+      return a.debitAccount.compareTo(b.debitAccount);
+    });
+
+    return list;
+  }
+
+  int get totalDebitableAccountsCount => debitableAccounts.length;
+
+  double get totalDebitableAmount =>
+      debitableAccounts.fold(0.0, (sum, item) => sum + item.debitAmount);
 
   double get totalMatchedDeclinedAmount =>
       matched.fold(0.0, (sum, item) => sum + item.totalDeclinedAmount);

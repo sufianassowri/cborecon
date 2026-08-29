@@ -189,7 +189,7 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
       allowedRoles: [UserRole.admin, UserRole.maker, UserRole.checker, UserRole.auditor, UserRole.manager],
     ),
     NavItemData(
-      title: 'Remote Dispute Utility',
+      title: 'Remote Dispute Hub',
       icon: Icons.tune_rounded,
       route: '/remote_dispute_utility',
       category: 'Audit & Risk',
@@ -204,29 +204,21 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
       badge: 'Settlement',
       allowedRoles: [UserRole.admin, UserRole.maker, UserRole.checker, UserRole.auditor, UserRole.manager],
     ),
-    NavItemData(
-      title: 'Remote Dispute Identification',
-      icon: Icons.find_in_page_rounded,
-      route: '/remote_dispute_identification',
-      category: 'Audit & Risk',
-      badge: 'Disputes',
-      allowedRoles: [UserRole.admin, UserRole.maker, UserRole.checker, UserRole.auditor, UserRole.manager],
-    ),
     // Cards
-    NavItemData(
-      title: 'Mastercard Hub (TSV)',
-      icon: Icons.payment_rounded,
-      route: '/mastercard_hub',
-      category: 'Cards',
-      badge: 'TSV',
-      allowedRoles: [UserRole.admin, UserRole.maker, UserRole.checker, UserRole.auditor, UserRole.manager],
-    ),
     NavItemData(
       title: 'Mastercard Ledger Recon',
       icon: Icons.pie_chart_rounded,
       route: '/mastercard_reconciliation',
       category: 'Cards',
       badge: 'Ledger',
+      allowedRoles: [UserRole.admin, UserRole.maker, UserRole.checker, UserRole.auditor, UserRole.manager],
+    ),
+    // Guide
+    NavItemData(
+      title: 'User Guide',
+      icon: Icons.menu_book_rounded,
+      route: '/guide',
+      category: 'Help',
       allowedRoles: [UserRole.admin, UserRole.maker, UserRole.checker, UserRole.auditor, UserRole.manager],
     ),
   ];
@@ -508,9 +500,7 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-              children: [
-                for (final item in visibleItems) _buildSidebarItem(item),
-              ],
+              children: _buildGroupedSidebarItems(visibleItems),
             ),
           ),
           if (!_isSidebarCollapsed)
@@ -576,15 +566,62 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                children: [
-                  for (final item in visibleItems) _buildSidebarItem(item),
-                ],
+                children: _buildGroupedSidebarItems(visibleItems),
               ),
             ),
           ],
         ),
       ),
     );
+  }
+
+  List<Widget> _buildGroupedSidebarItems(List<NavItemData> visibleItems) {
+    if (_isSidebarCollapsed) {
+      return visibleItems.map((item) => _buildSidebarItem(item)).toList();
+    }
+
+    final grouped = <String, List<NavItemData>>{};
+    for (final item in visibleItems) {
+      if (item.category == 'Overview' || item.category == 'Admin' || item.category == 'Help') {
+        grouped[item.title] = [item];
+      } else {
+        grouped.putIfAbsent(item.category, () => []).add(item);
+      }
+    }
+
+    final List<Widget> widgets = [];
+    for (final entry in grouped.entries) {
+      if (entry.value.length == 1 && (entry.value.first.title == entry.key || entry.value.first.category == 'Help' || entry.value.first.category == 'Overview' || entry.value.first.category == 'Admin')) {
+        widgets.add(_buildSidebarItem(entry.value.first));
+      } else if (entry.value.length == 1) {
+        // Even if length is 1, if it belongs to a category like 'Cards', we can put it under an expansion tile or just display it directly.
+        // Let's display directly for simplicity if it's just 1 item.
+        widgets.add(_buildSidebarItem(entry.value.first));
+      } else {
+        final isExpanded = entry.value.any((item) => widget.currentRoute == item.route);
+        widgets.add(
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              initiallyExpanded: isExpanded,
+              iconColor: CboColors.primaryCyan,
+              collapsedIconColor: CboColors.slateMuted,
+              title: Text(
+                entry.key,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: CboColors.slateDark,
+                ),
+              ),
+              childrenPadding: const EdgeInsets.only(left: 12),
+              children: entry.value.map((item) => _buildSidebarItem(item)).toList(),
+            ),
+          ),
+        );
+      }
+    }
+    return widgets;
   }
 
   Widget _buildSidebarItem(NavItemData item) {

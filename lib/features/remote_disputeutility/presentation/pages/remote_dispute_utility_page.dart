@@ -8,6 +8,7 @@ import '../../../../core/widgets/guided_recon_modal.dart';
 import '../../../../core/widgets/responsive_shell.dart';
 import '../../data/datasources/excel_parser_datasource.dart';
 import '../providers/dispute_reconciliation_provider.dart';
+import '../widgets/remote_dispute_identification_tab.dart';
 
 class RemoteDisputeUtilityPage extends ConsumerWidget {
   const RemoteDisputeUtilityPage({super.key});
@@ -65,12 +66,34 @@ class RemoteDisputeUtilityPage extends ConsumerWidget {
           onPressed: () => _handleExport(context, ref),
         ),
       ],
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          bool isMobile = constraints.maxWidth < 600;
+      body: DefaultTabController(
+        length: 2,
+        child: Column(
+          children: [
+            Container(
+              color: Colors.white,
+              child: const TabBar(
+                isScrollable: true,
+                labelColor: Colors.blueAccent,
+                unselectedLabelColor: Colors.grey,
+                indicatorColor: Colors.blueAccent,
+                tabs: [
+                  Tab(text: 'Identification & Routing'),
+                  Tab(text: 'Dynamic Utility Mapping'),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  const RemoteDisputeIdentificationTab(),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      bool isMobile = constraints.maxWidth < 600;
 
-          return Column(
-            children: [
+                      return Column(
+                        children: [
               Expanded(
                 child: rowsAsync.when(
                   data: (entityRows) {
@@ -140,9 +163,15 @@ class RemoteDisputeUtilityPage extends ConsumerWidget {
                   ],
                 ),
               ),
-            ],
-          );
-        },
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

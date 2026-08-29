@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/cbo_colors.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_shell.dart';
+import '../../../../core/widgets/guided_recon_modal.dart';
 import '../../data/model/dispute_batch_model.dart';
 import '../controllers/dispute_provider.dart';
 import 'dispute_auditor_view.dart';
@@ -161,6 +162,22 @@ class _ManagerDisputeScreenState extends ConsumerState<ManagerDisputeScreen>
       title: 'Dispute Management - Operations Manager Portal',
       subtitle: 'Supervisory assignment of dispute batches, counted transaction tracking & audit governance',
       actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline_rounded, color: Colors.white),
+          tooltip: 'Operation Guide',
+          onPressed: () {
+            GuidedReconModal.show(
+              context,
+              moduleTitle: 'Dispute Management - Manager Guide',
+              modulePurpose: 'Supervisory assignment of dispute batches, transaction tracking, and audit governance.',
+              steps: const [
+                ReconStepGuide(step: 1, title: 'Monitor Incoming Batches', format: 'Real-time', description: 'View unassigned disputes uploaded by the Maker.'),
+                ReconStepGuide(step: 2, title: 'Assign Checkers', format: 'Manual', description: 'Select a registered checker from the database to authorize the batch.'),
+                ReconStepGuide(step: 3, title: 'Track Turnaround SLA', format: 'Analytics', description: 'Monitor the average time taken from batch creation to authorization.'),
+              ],
+            );
+          },
+        ),
         IconButton(
           icon: const Icon(Icons.refresh_rounded, color: Colors.white),
           tooltip: 'Refresh Batches',
@@ -451,21 +468,24 @@ class _ManagerDisputeScreenState extends ConsumerState<ManagerDisputeScreen>
                                 ),
                                 DataCell(_buildStatusChip(b.status)),
                                 DataCell(
-                                  ElevatedButton.icon(
-                                    onPressed: () => _showAssignCheckerDialog(b),
-                                    icon: Icon(
-                                      isPending ? Icons.person_add_alt_1_rounded : Icons.swap_horiz_rounded,
-                                      size: 16,
-                                      color: Colors.white,
-                                    ),
-                                    label: Text(
-                                      isPending ? 'Assign' : 'Reassign',
-                                      style: const TextStyle(color: Colors.white, fontSize: 12),
-                                    ),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: isPending ? CboColors.primaryBlue : Colors.grey.shade700,
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                  Tooltip(
+                                    message: (b.status == 'AUTHORIZED' || b.status == 'REJECTED') ? 'Cannot reassign a completed batch' : '',
+                                    child: ElevatedButton.icon(
+                                      onPressed: (b.status == 'AUTHORIZED' || b.status == 'REJECTED') ? null : () => _showAssignCheckerDialog(b),
+                                      icon: Icon(
+                                        isPending ? Icons.person_add_alt_1_rounded : ((b.status == 'AUTHORIZED' || b.status == 'REJECTED') ? Icons.lock_rounded : Icons.swap_horiz_rounded),
+                                        size: 16,
+                                        color: (b.status == 'AUTHORIZED' || b.status == 'REJECTED') ? Colors.grey.shade600 : Colors.white,
+                                      ),
+                                      label: Text(
+                                        isPending ? 'Assign' : ((b.status == 'AUTHORIZED' || b.status == 'REJECTED') ? 'Locked' : 'Reassign'),
+                                        style: TextStyle(color: (b.status == 'AUTHORIZED' || b.status == 'REJECTED') ? Colors.grey.shade600 : Colors.white, fontSize: 12),
+                                      ),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: (b.status == 'AUTHORIZED' || b.status == 'REJECTED') ? Colors.grey.shade300 : (isPending ? CboColors.primaryBlue : Colors.grey.shade700),
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                                      ),
                                     ),
                                   ),
                                 ),

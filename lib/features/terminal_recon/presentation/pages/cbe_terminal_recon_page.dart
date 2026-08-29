@@ -154,6 +154,8 @@ class _CbeTerminalReconPageState extends ConsumerState<CbeTerminalReconPage> {
   Widget build(BuildContext context) {
     final reconState = ref.watch(cbeTerminalReconProvider);
     final totalCount = reconState.reconciledRows.length;
+    // Calculate matching rate based ONLY on items that exist in CBS
+    final totalCbsCount = reconState.reconciledRows.where((r) => r.status != TerminalReconStatus.missingInCbs).length;
     final matchedCount = reconState.reconciledRows.where((r) => r.status == TerminalReconStatus.ok).length;
     final mismatchCount = totalCount - matchedCount;
 
@@ -247,8 +249,8 @@ class _CbeTerminalReconPageState extends ConsumerState<CbeTerminalReconPage> {
                     child: CboMetricCard(
                       title: 'Fully Matched',
                       value: '$matchedCount',
-                      subtitle: totalCount > 0 ? '${((matchedCount / totalCount) * 100).toStringAsFixed(1)}% match rate' : null,
-                      icon: Icons.check_circle_rounded,
+                      subtitle: totalCbsCount > 0 ? '${((matchedCount / totalCbsCount) * 100).toStringAsFixed(1)}% match rate' : null,
+                      icon: Icons.verified_rounded,
                       color: CboColors.bankGreen,
                     ),
                   ),

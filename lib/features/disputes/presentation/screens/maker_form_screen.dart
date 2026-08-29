@@ -6,9 +6,9 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/cbo_colors.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_shell.dart';
+import '../../../../core/widgets/guided_recon_modal.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/dispute_file_parser.dart';
-import '../../data/model/dispute_batch_model.dart';
 import '../controllers/dispute_provider.dart';
 
 class MakerFormScreen extends ConsumerStatefulWidget {
@@ -256,6 +256,22 @@ Deposit Dispute''';
       title: 'Dispute Management - Maker Portal',
       subtitle: 'Upload multi-line dispute files, auto-aggregate single batch DC tickets & track review workflow',
       actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline_rounded, color: Colors.white),
+          tooltip: 'Operation Guide',
+          onPressed: () {
+            GuidedReconModal.show(
+              context,
+              moduleTitle: 'Dispute Management - Maker Guide',
+              modulePurpose: 'Upload multi-line dispute files, auto-aggregate single batch DC tickets & track review workflow.',
+              steps: const [
+                ReconStepGuide(step: 1, title: 'Upload Dispute File', format: '.CSV / .TXT / .TSV', description: 'Drop or select a dispute raw file containing multiple transactions.'),
+                ReconStepGuide(step: 2, title: 'Parse and Validate', format: 'Instant', description: 'Automatically aggregates records into a single Batch ID.'),
+                ReconStepGuide(step: 3, title: 'Submit to Checker', format: 'Workflow', description: 'Submit the batch for review by Operations Manager and Checkers.'),
+              ],
+            );
+          },
+        ),
         IconButton(
           icon: const Icon(Icons.refresh_rounded, color: Colors.white),
           tooltip: 'Refresh Batch History',

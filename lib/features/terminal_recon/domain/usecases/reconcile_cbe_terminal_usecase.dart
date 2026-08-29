@@ -55,12 +55,9 @@ class ReconcileCbeTerminalUseCase {
             isOk = false;
           }
         }
-        if (cbsPanIdx != -1 && setPanIdx != -1 && cbsRow.length > cbsPanIdx && setRow.length > setPanIdx) {
-          final cPan = PanMaskerUtil.mask(cbsRow[cbsPanIdx]?.toString() ?? '');
-          final sPan = PanMaskerUtil.mask(setRow[setPanIdx]?.toString() ?? '');
-          if (cPan.isNotEmpty && sPan.isNotEmpty && cPan != sPan) {
-            isOk = false;
-          }
+        if (cbsPanIdx != -1 && setPanIdx != -1) {
+          // User requested: Make comparison by PAN optional. If they match it is ok, if not no problem.
+          // We still mask and extract the PAN for display in the grid, but do not invalidate the match.
         }
         status = isOk ? TerminalReconStatus.ok : TerminalReconStatus.amountMismatch;
       } else if (cbsRow != null && setRow == null) {

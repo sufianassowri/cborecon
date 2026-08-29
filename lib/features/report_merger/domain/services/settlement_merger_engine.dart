@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+
 import 'package:csv/csv.dart';
 import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import '../entities/settlement_row_entity.dart';
 
 class MergedSettlementResult {
@@ -27,6 +28,20 @@ class MergedSettlementResult {
     required this.duplicateHeadersRemoved,
     required this.totalVolumeAmount,
     required this.processingTime,
+  });
+}
+
+class IsolateFilePayload {
+  final String name;
+  final String? path;
+  final String? extension;
+  final Uint8List? bytes;
+
+  IsolateFilePayload({
+    required this.name,
+    this.path,
+    this.extension,
+    this.bytes,
   });
 }
 
@@ -59,11 +74,82 @@ class SettlementMergerEngine {
     return clean;
   }
 
+  static String _decodeBytes(Uint8List bytes) {
+    if (bytes.isEmpty) return '';
+    bool isUtf16Le = false;
+    if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
+      isUtf16Le = true;
+    } else if (bytes.length > 4 && bytes[1] == 0x00 && bytes[3] == 0x00) {
+      isUtf16Le = true;
+    }
+    
+    if (isUtf16Le) {
+      final charCodes = <int>[];
+      int start = (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) ? 2 : 0;
+      for (int i = start; i < bytes.length; i += 2) {
+        if (i + 1 < bytes.length) {
+          charCodes.add(bytes[i] | (bytes[i + 1] << 8));
+        }
+      }
+      // Strip zero-width and unwanted BOMs that might remain
+      return String.fromCharCodes(charCodes)
+          .replaceAll('\uFEFF', '')
+          .replaceAll('\uFFFE', '')
+          .replaceAll('\u0000', ''); // strip nulls
+    }
+    
+    String decoded = utf8.decode(bytes, allowMalformed: true);
+    return decoded
+        .replaceAll('\uFEFF', '')
+        .replaceAll('\uFFFE', '')
+        .replaceAll('\u0000', '');
+  }
+
   /// Process multiple PlatformFiles and merge into unified sorted dataset + category groups
   static Future<MergedSettlementResult> mergeFiles({
     required List<PlatformFile> files,
     Function(String status, double progress)? onProgress,
   }) async {
+    final stopwatch = Stopwatch()..start();
+    
+    if (onProgress != null) {
+      onProgress('Preparing files for background processing...', 0.1);
+    }
+
+    // Convert PlatformFiles into isolate-safe payload
+    final isolateFiles = await Future.wait(files.map((f) async {
+      Uint8List? safeBytes = f.bytes;
+      if (safeBytes == null && f.path != null && !kIsWeb) {
+        // Read file bytes in main thread or let isolate do it? Let main thread do quick read if small, 
+        // or just pass path to isolate so it reads it there. 
+        // Passing path is better to avoid memory duplication in main thread.
+      }
+      return IsolateFilePayload(
+        name: f.name,
+        path: f.path,
+        extension: f.extension,
+        bytes: f.bytes,
+      );
+    }));
+
+    if (onProgress != null) {
+      onProgress('Offloading heavy processing to isolate...', 0.3);
+    }
+
+    // Run the heavy logic in a separate isolate
+    final result = await compute(_isolateMergeProcess, isolateFiles);
+
+    stopwatch.stop();
+
+    if (onProgress != null) {
+      onProgress('Merge complete! ${result.allMergedRows.length} records ready.', 1.0);
+    }
+
+    return result;
+  }
+
+  // --- BACKGROUND ISOLATE PROCESS ---
+  static Future<MergedSettlementResult> _isolateMergeProcess(List<IsolateFilePayload> files) async {
     final stopwatch = Stopwatch()..start();
     final List<SettlementRowEntity> allRows = [];
     int totalRowsCounted = 0;
@@ -72,12 +158,7 @@ class SettlementMergerEngine {
 
     for (int i = 0; i < files.length; i++) {
       final file = files[i];
-      final progressFraction = i / files.length;
-      if (onProgress != null) {
-        onProgress('Reading file ${i + 1}/${files.length}: ${file.name}', progressFraction);
-      }
-
-      final rawRows = await _extractRowsFromFile(file);
+      final rawRows = await _extractRowsFromPayload(file);
       totalRowsCounted += rawRows.length;
 
       if (rawRows.isEmpty) continue;
@@ -144,9 +225,7 @@ class SettlementMergerEngine {
       }
     }
 
-    if (onProgress != null) {
-      onProgress('Sorting ${allRows.length} transactions chronologically...', 0.85);
-    }
+
 
     // 3. Sort chronologically by Transaction_Date (Ascending: 28th -> 30th -> 31st)
     allRows.sort((a, b) {
@@ -158,9 +237,7 @@ class SettlementMergerEngine {
       return a.transactionDate.compareTo(b.transactionDate);
     });
 
-    if (onProgress != null) {
-      onProgress('Categorizing into multi-sheet groups...', 0.95);
-    }
+
 
     // 4. Segment into sheets by Transaction_Description
     final Map<String, List<SettlementRowEntity>> categorized = {};
@@ -176,9 +253,7 @@ class SettlementMergerEngine {
 
     stopwatch.stop();
 
-    if (onProgress != null) {
-      onProgress('Merge complete! ${allRows.length} records ready.', 1.0);
-    }
+
 
     return MergedSettlementResult(
       allMergedRows: allRows,
@@ -193,8 +268,8 @@ class SettlementMergerEngine {
     );
   }
 
-  /// Extract raw rows from .xls, .xlsx, .csv, .tsv or .txt
-  static Future<List<List<dynamic>>> _extractRowsFromFile(PlatformFile file) async {
+  /// Extract raw rows from .xls, .xlsx, .csv, .tsv or .txt payload
+  static Future<List<List<dynamic>>> _extractRowsFromPayload(IsolateFilePayload file) async {
     List<List<dynamic>> rows = [];
 
     Uint8List? bytes = file.bytes;
@@ -221,13 +296,13 @@ class SettlementMergerEngine {
       } catch (_) {
         // If binary xls fail, attempt fallback text reading (many bank reports are tab-delimited text named .xls)
         try {
-          final text = utf8.decode(bytes, allowMalformed: true);
+          final text = _decodeBytes(bytes);
           rows = const CsvToListConverter(shouldParseNumbers: false, eol: '\n').convert(text);
         } catch (_) {}
       }
     } else {
       // CSV / TSV / TXT
-      final text = utf8.decode(bytes, allowMalformed: true);
+      final text = _decodeBytes(bytes);
       String delimiter = ',';
       final firstLine = text.split('\n').first;
       if (firstLine.contains('\t')) {

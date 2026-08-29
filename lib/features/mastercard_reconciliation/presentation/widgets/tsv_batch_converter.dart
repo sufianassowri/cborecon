@@ -5,55 +5,24 @@ import 'package:pluto_grid/pluto_grid.dart';
 import 'package:csv/csv.dart';
 import 'package:archive/archive.dart';
 import '../../../../core/constants/cbo_colors.dart';
-import '../../../../core/widgets/guided_recon_modal.dart';
-import '../../../../core/widgets/responsive_shell.dart';
-import 'to_excel_generator.dart';
 
-class TsvProcessorPage extends StatefulWidget {
-  const TsvProcessorPage({super.key});
+import '../../../master_card/to_excel_generator.dart';
+
+class TsvBatchConverter extends StatefulWidget {
+  const TsvBatchConverter({super.key});
 
   @override
-  State<TsvProcessorPage> createState() => _TsvProcessorPageState();
+  State<TsvBatchConverter> createState() => _TsvBatchConverterState();
 }
 
-class _TsvProcessorPageState extends State<TsvProcessorPage> {
+class _TsvBatchConverterState extends State<TsvBatchConverter> {
   List<PlutoColumn> _columns = [];
   List<PlutoRow> _rows = [];
   List<List<dynamic>> _combinedMatrix = [];
   int _fileCount = 0;
   bool _isLoading = false;
 
-  void _showGuide() {
-    GuidedReconModal.show(
-      context,
-      moduleTitle: 'Mastercard Settlement Hub Guide',
-      modulePurpose: 'Batch processing pipeline for Mastercard international settlement records. Unzips bulk archives or parses individual TSV/TXT clearing feeds into an interactive PlutoGrid matrix and Excel workbook.',
-      steps: const [
-        ReconStepGuide(
-          step: 1,
-          title: 'Choose Ingestion Mode (ZIP vs TSV)',
-          format: '.ZIP / .TSV / .TXT',
-          description: 'Upload either a ZIP archive containing multiple TSVs or single/multiple TSV/TXT files directly.',
-        ),
-        ReconStepGuide(
-          step: 2,
-          title: 'Automatic Tab-Separated Matrix Parsing',
-          format: 'Instant',
-          description: 'Parses tab-delimited feeds, extracts Mastercard positional column indices, and binds into PlutoGrid.',
-        ),
-        ReconStepGuide(
-          step: 3,
-          title: 'Multi-Sheet Excel Synthesis',
-          format: '.XLSX',
-          description: 'Exports consolidated audit workbook directly to disk.',
-        ),
-      ],
-      tips: const [
-        'ZIP decoding is performed in-memory without temporary file storage overhead.',
-        'Columns can be sorted, filtered, and resized directly within the grid.',
-      ],
-    );
-  }
+
 
   Future<void> _pickAndProcess({required bool isZip}) async {
     setState(() => _isLoading = true);
@@ -161,47 +130,32 @@ class _TsvProcessorPageState extends State<TsvProcessorPage> {
     );
   }
 
+
+
   @override
   Widget build(BuildContext context) {
-    return ResponsiveShell(
-      currentRoute: '/mastercard_hub',
-      title: 'Mastercard Settlement Hub',
-      subtitle: 'Bulk TSV & ZIP Multi-File Processor and Workbook Generator',
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.help_outline_rounded, color: CboColors.primaryCyan),
-          tooltip: 'Operation Guide',
-          onPressed: _showGuide,
-        ),
-        if (_rows.isNotEmpty)
-          IconButton(
-            icon: const Icon(Icons.table_view_rounded, color: CboColors.bankGreen),
-            tooltip: 'Export Excel Workbook',
-            onPressed: _downloadAsExcel,
-          ),
-      ],
-      body: _isLoading
-          ? const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: Color(0xFF4527A0)),
-                  SizedBox(height: 16),
-                  Text('Processing & Decompressing Mastercard Feeds...', style: TextStyle(color: CboColors.slateMuted, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            )
-          : Column(
+    return _isLoading
+        ? const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Top Control Bar
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    border: Border(bottom: BorderSide(color: CboColors.cardBorder)),
-                  ),
-                  child: Wrap(
+                CircularProgressIndicator(color: Color(0xFF4527A0)),
+                SizedBox(height: 16),
+                Text('Processing & Decompressing Mastercard Feeds...', style: TextStyle(color: CboColors.slateMuted, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          )
+        : Column(
+            children: [
+              // Top Control Bar
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  border: Border(bottom: BorderSide(color: CboColors.cardBorder)),
+                ),
+                child: Wrap(
                     spacing: 12,
                     runSpacing: 10,
                     alignment: WrapAlignment.start,
@@ -229,6 +183,18 @@ class _TsvProcessorPageState extends State<TsvProcessorPage> {
                         label: const Text('2. Pick Direct TSV File(s)'),
                         onPressed: () => _pickAndProcess(isZip: false),
                       ),
+                      if (_rows.isNotEmpty)
+                        ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: CboColors.bankGreen,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          icon: const Icon(Icons.download_rounded, size: 18),
+                          label: const Text('Export to Excel'),
+                          onPressed: _downloadAsExcel,
+                        ),
                       if (_rows.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -292,7 +258,6 @@ class _TsvProcessorPageState extends State<TsvProcessorPage> {
                         ),
                 ),
               ],
-            ),
-    );
+            );
   }
 }

@@ -10,8 +10,8 @@ import '../../../../core/utils/csv_parser_util.dart';
 import '../../../../core/utils/file_saver_util.dart';
 import '../../../../core/widgets/cbo_file_dropzone.dart';
 import '../../../../core/widgets/cbo_metric_card.dart';
-import '../../../../core/widgets/guided_recon_modal.dart';
-import '../../../../core/widgets/responsive_shell.dart';
+
+
 import '../../domain/entities/remote_dispute_models.dart';
 import '../../domain/usecases/identify_remote_disputes_usecase.dart';
 
@@ -24,16 +24,16 @@ enum RemoteDisputeFilter {
   settlementOnly,
 }
 
-class RemoteDisputeIdentificationDashboard extends StatefulWidget {
-  const RemoteDisputeIdentificationDashboard({super.key});
+class RemoteDisputeIdentificationTab extends StatefulWidget {
+  const RemoteDisputeIdentificationTab({super.key});
 
   @override
-  State<RemoteDisputeIdentificationDashboard> createState() =>
-      _RemoteDisputeIdentificationDashboardState();
+  State<RemoteDisputeIdentificationTab> createState() =>
+      _RemoteDisputeIdentificationTabState();
 }
 
-class _RemoteDisputeIdentificationDashboardState
-    extends State<RemoteDisputeIdentificationDashboard> {
+class _RemoteDisputeIdentificationTabState
+    extends State<RemoteDisputeIdentificationTab> {
   final IdentifyRemoteDisputesUseCase _useCase =
       IdentifyRemoteDisputesUseCase();
 
@@ -49,64 +49,6 @@ class _RemoteDisputeIdentificationDashboardState
 
   final NumberFormat _currencyFormat = NumberFormat('#,##0.00', 'en_US');
   final NumberFormat _countFormat = NumberFormat('#,##0', 'en_US');
-
-  void _showGuide() {
-    GuidedReconModal.show(
-      context,
-      moduleTitle: 'Remote Dispute Identification Guide',
-      modulePurpose:
-          'Automatically matches CBS dispute records with settlement journals on 4 criteria: (1) Last 4 digits of PAN, (2) Retrieval Reference Number (RRN), (3) Transaction Amount, and (4) Acquirer Bank. Detects unreported duplicate customer errors on the settlement side and clusters all transactions by PAN.',
-      steps: const [
-        ReconStepGuide(
-          step: 1,
-          title: 'Load CBS Report File',
-          format: '.CSV / .XLSX / .XLS',
-          description:
-              'Core Banking dispute report with columns: TRANS.REF, PAN.NUMBER, VALUE.DATE, DEBIT.ACCT.NO, Customer, Acquirer Bank, Branch, TXN.AMOUNT, RETRIEVAL.REF.NO.',
-          expectedColumns: [
-            'PAN.NUMBER',
-            'TXN.AMOUNT',
-            'RETRIEVAL.REF.NO',
-            'Acquirer Bank'
-          ],
-        ),
-        ReconStepGuide(
-          step: 2,
-          title: 'Load Settlement Report File',
-          format: '.CSV / .XLSX / .XLS',
-          description:
-              'Switch/Settlement report with columns: Issuer, Acquirer, MTI, Card_Number, Amount, Currency, Transaction_Date, Transaction_Description, Terminal_ID, Transaction_Place, STAN_F11, Refnum_F37, Authidresp_F38, Fe_utrnno, Bo_utrnno.',
-          expectedColumns: [
-            'Card_Number',
-            'Amount',
-            'Refnum_F37',
-            'Acquirer',
-            'Fe_utrnno'
-          ],
-        ),
-        ReconStepGuide(
-          step: 3,
-          title: 'Multi-Priority Matching & Bank Normalization',
-          format: 'Automatic',
-          description:
-              'Normalizes 28+ Ethiopian bank names (e.g. "CBE ETS SETTL" ↔ "Commercial Bank of Ethiopia", "ABYSSINIA" ↔ "Bank of Abyssinia S.C"). Aligns bank automatically if RRN matches.',
-        ),
-        ReconStepGuide(
-          step: 4,
-          title: 'Unreported Duplicate Candidate Detection',
-          format: 'Automatic',
-          description:
-              'Identifies other settlement attempts for the disputed card (same last 4 digits of PAN) and lists them with empty CBS rows to catch un-reported customer dispute errors.',
-        ),
-      ],
-      tips: const [
-        'Matching records are automatically grouped together by PAN so all related disputes appear consecutively.',
-        'Prioritized matches and candidate settlement duplicates are styled prominently.',
-        'Mismatches (PAN/RRN match but amount differs) and Missed CBS disputes are highlighted.',
-        'Export multi-sheet Excel reports with full side-by-side reconciliation details.',
-      ],
-    );
-  }
 
   /// Strips BOM, zero-width characters, and non-printable chars from a header string.
   static String _sanitizeHeader(String header) {
@@ -837,21 +779,8 @@ class _RemoteDisputeIdentificationDashboardState
 
   @override
   Widget build(BuildContext context) {
-    return ResponsiveShell(
-      currentRoute: '/remote_dispute_identification',
-      title: 'Remote Dispute Identification',
-      subtitle:
-          'Cross-Bank Card Dispute & Unreported Duplicate Error Detection Engine',
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.help_outline_rounded,
-              color: CboColors.slateMedium),
-          tooltip: 'Calculation Guide',
-          onPressed: _showGuide,
-        ),
-      ],
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1103,8 +1032,7 @@ class _RemoteDisputeIdentificationDashboardState
             ],
           ],
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildTabButton(

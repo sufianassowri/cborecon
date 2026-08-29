@@ -5,6 +5,7 @@ import 'package:pluto_grid/pluto_grid.dart';
 import '../../../../core/constants/cbo_colors.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_shell.dart';
+import '../../../../core/widgets/guided_recon_modal.dart';
 import '../../domain/entities/settlement_row_entity.dart';
 import '../../domain/services/settlement_merger_engine.dart';
 import '../providers/report_merger_provider.dart';
@@ -37,6 +38,22 @@ class _ReportMergerPageState extends ConsumerState<ReportMergerPage> {
       title: 'Settlement Report Merger Engine',
       subtitle: 'Multi-file settlement merger, single-header deduplication, chronological sorting & multi-sheet generation',
       actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline_rounded, color: Colors.white),
+          tooltip: 'Operation Guide',
+          onPressed: () {
+            GuidedReconModal.show(
+              context,
+              moduleTitle: 'Settlement Report Merger Guide',
+              modulePurpose: 'Multi-file settlement merger, single-header deduplication, chronological sorting & multi-sheet generation.',
+              steps: const [
+                ReconStepGuide(step: 1, title: 'Upload Files', format: '.CSV / .TXT / .XLSX', description: 'Select multiple settlement files to merge.'),
+                ReconStepGuide(step: 2, title: 'Merge Engine', format: 'Background', description: 'Automatically merges files and deduplicates headers in an isolated thread.'),
+                ReconStepGuide(step: 3, title: 'Export Results', format: '.XLSX / .CSV', description: 'Download the combined settlement report into multiple sheets if required.'),
+              ],
+            );
+          },
+        ),
         if (state.mergedResult != null) ...[
           OutlinedButton.icon(
             onPressed: () async {

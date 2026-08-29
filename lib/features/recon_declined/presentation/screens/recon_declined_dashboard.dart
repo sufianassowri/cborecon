@@ -15,7 +15,7 @@ import '../../../../core/widgets/responsive_shell.dart';
 import '../../domain/entities/recon_declined_models.dart';
 import '../../domain/usecases/reconcile_declined_usecase.dart';
 
-enum ReconDeclinedFilter { matched, excessOnly, declinedOnly, all }
+enum ReconDeclinedFilter { matched, debitable, excessOnly, declinedOnly, all }
 
 class ReconDeclinedDashboard extends StatefulWidget {
   const ReconDeclinedDashboard({super.key});
@@ -342,6 +342,38 @@ class _ReconDeclinedDashboardState extends State<ReconDeclinedDashboard> {
           ),
         ];
 
+      case ReconDeclinedFilter.debitable:
+        return [
+          PlutoColumn(
+            title: 'DebitAccount',
+            field: 'debit_account',
+            type: PlutoColumnType.text(),
+            width: 220,
+            enableEditingMode: false,
+          ),
+          PlutoColumn(
+            title: 'debitAmount',
+            field: 'debit_amount',
+            type: PlutoColumnType.currency(symbol: 'ETB '),
+            width: 180,
+            enableEditingMode: false,
+          ),
+          PlutoColumn(
+            title: 'Account Type',
+            field: 'account_type',
+            type: PlutoColumnType.text(),
+            width: 160,
+            enableEditingMode: false,
+          ),
+          PlutoColumn(
+            title: 'Terminal (CARD.ACC.ID)',
+            field: 'card_acc_id',
+            type: PlutoColumnType.text(),
+            width: 180,
+            enableEditingMode: false,
+          ),
+        ];
+
       case ReconDeclinedFilter.excessOnly:
         return [
           PlutoColumn(
@@ -563,6 +595,16 @@ class _ReconDeclinedDashboardState extends State<ReconDeclinedDashboard> {
           });
         }).toList();
 
+      case ReconDeclinedFilter.debitable:
+        return _result!.debitableAccounts.map((d) {
+          return PlutoRow(cells: {
+            'debit_account': PlutoCell(value: d.debitAccount),
+            'debit_amount': PlutoCell(value: d.debitAmount),
+            'account_type': PlutoCell(value: d.accountType),
+            'card_acc_id': PlutoCell(value: d.cardAccId),
+          });
+        }).toList();
+
       case ReconDeclinedFilter.excessOnly:
         return _result!.excessOnly.map((e) {
           return PlutoRow(cells: {
@@ -638,7 +680,21 @@ class _ReconDeclinedDashboardState extends State<ReconDeclinedDashboard> {
 
     final excel = excel_pkg.Excel.createExcel();
 
-    // 1. Matched Sheet
+    // 1. Debitable Accounts Sheet (2 columns: DebitAccount, debitAmount)
+    if (_result!.debitableAccounts.isNotEmpty) {
+      final debitableSheet = excel['Debitable_Accounts'];
+      final headers = ['DebitAccount', 'debitAmount'];
+      debitableSheet.appendRow(headers.map((h) => excel_pkg.TextCellValue(h)).toList());
+
+      for (final d in _result!.debitableAccounts) {
+        debitableSheet.appendRow([
+          excel_pkg.TextCellValue(d.debitAccount),
+          excel_pkg.DoubleCellValue(d.debitAmount),
+        ]);
+      }
+    }
+
+    // 2. Matched Sheet
     if (_result!.matched.isNotEmpty) {
       final matchedSheet = excel['Matched_Settlements'];
       final headers = [
@@ -1052,6 +1108,11 @@ class _ReconDeclinedDashboardState extends State<ReconDeclinedDashboard> {
                       'Matched Debits (${_result!.totalMatchedCount})',
                       ReconDeclinedFilter.matched,
                       Icons.check_circle_outline_rounded,
+                    ),
+                    _buildTabButton(
+                      'Debitable Accounts (${_result!.totalDebitableAccountsCount})',
+                      ReconDeclinedFilter.debitable,
+                      Icons.payments_outlined,
                     ),
                     _buildTabButton(
                       'Excess Only (${_result!.totalExcessOnlyCount})',

@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:excel/excel.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/utils/file_saver_util.dart';
 import '../../domain/entities/settlement_row_entity.dart';
 import '../../domain/services/settlement_merger_engine.dart';
@@ -10,6 +11,16 @@ class ExcelWorkbookExporter {
     required MergedSettlementResult mergeResult,
     required String baseFileName,
   }) async {
+    // Offload heavy excel creation to background isolate
+    final bytes = await compute(_isolateBuildExcel, mergeResult);
+
+    return await FileSaverUtil.saveExcel(
+      baseName: baseFileName,
+      bytes: bytes,
+    );
+  }
+
+  static Future<Uint8List> _isolateBuildExcel(MergedSettlementResult mergeResult) async {
     final excel = Excel.createExcel();
 
     // Default sheet name created by excel package is 'Sheet1'
@@ -28,15 +39,11 @@ class ExcelWorkbookExporter {
       _populateSheet(excel, sheetName, entry.value);
     }
 
-    final bytes = excel.encode();
-    if (bytes == null) {
+    final bytesList = excel.encode();
+    if (bytesList == null) {
       throw Exception('Failed to encode Excel workbook');
     }
-
-    return await FileSaverUtil.saveExcel(
-      baseName: baseFileName,
-      bytes: Uint8List.fromList(bytes),
-    );
+    return Uint8List.fromList(bytesList);
   }
 
   /// Populate header and rows for a given sheet
@@ -80,6 +87,16 @@ class ExcelWorkbookExporter {
     required List<SettlementRowEntity> rows,
     required String baseFileName,
   }) async {
+    // Offload heavy CSV string building to background isolate
+    final csvContent = await compute(_isolateBuildCsv, rows);
+
+    return await FileSaverUtil.saveCsv(
+      baseName: baseFileName,
+      csvContent: csvContent,
+    );
+  }
+
+  static Future<String> _isolateBuildCsv(List<SettlementRowEntity> rows) async {
     final buffer = StringBuffer();
     // 1. Single Header Row
     buffer.writeln(SettlementHeaders.standard.join(','));
@@ -106,9 +123,6 @@ class ExcelWorkbookExporter {
       buffer.writeln(cleanValues.join(','));
     }
 
-    return await FileSaverUtil.saveCsv(
-      baseName: baseFileName,
-      csvContent: buffer.toString(),
-    );
+    return buffer.toString();
   }
 }

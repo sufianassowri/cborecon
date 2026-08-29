@@ -6,6 +6,7 @@ import '../../../../core/constants/cbo_colors.dart';
 import '../../../../core/utils/file_saver_util.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_shell.dart';
+import '../../../../core/widgets/guided_recon_modal.dart';
 import '../../data/model/dispute_batch_model.dart';
 import '../controllers/dispute_provider.dart';
 
@@ -19,6 +20,22 @@ class DisputeAuditorView extends ConsumerWidget {
       title: 'Dispute Management - Internal Auditor Portal',
       subtitle: 'Audit trail ledger, assignment SLA tracking, lifecycle turnaround analysis & correction history',
       actions: [
+        IconButton(
+          icon: const Icon(Icons.help_outline_rounded, color: Colors.white),
+          tooltip: 'Operation Guide',
+          onPressed: () {
+            GuidedReconModal.show(
+              context,
+              moduleTitle: 'Dispute Management - Auditor Guide',
+              modulePurpose: 'Audit trail ledger, assignment SLA tracking, lifecycle turnaround analysis & correction history.',
+              steps: const [
+                ReconStepGuide(step: 1, title: 'Monitor SLAs', format: 'Metrics', description: 'Review average turnaround times between assignment and authorization.'),
+                ReconStepGuide(step: 2, title: 'Review Ledger', format: 'Table', description: 'Inspect all batches and their detailed audit history.'),
+                ReconStepGuide(step: 3, title: 'Export Data', format: 'CSV', description: 'Export the complete audit ledger for external compliance tracking.'),
+              ],
+            );
+          },
+        ),
         IconButton(
           icon: const Icon(Icons.refresh_rounded, color: Colors.white),
           tooltip: 'Refresh Audit Data',
