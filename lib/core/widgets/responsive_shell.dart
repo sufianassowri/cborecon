@@ -164,6 +164,14 @@ class _ResponsiveShellState extends ConsumerState<ResponsiveShell> {
       allowedRoles: [UserRole.admin, UserRole.maker],
     ),
     NavItemData(
+      title: 'Remote Dispute Memo',
+      icon: Icons.receipt_long_rounded,
+      route: '/remote_dispute_memo',
+      category: 'Disputes & Governance',
+      badge: 'R-GL',
+      allowedRoles: [UserRole.admin, UserRole.maker],
+    ),
+    NavItemData(
       title: 'Settlement Report Merger',
       icon: Icons.merge_type_rounded,
       route: '/report_merger',

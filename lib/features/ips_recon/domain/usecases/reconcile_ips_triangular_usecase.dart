@@ -19,6 +19,14 @@ class IpsTriangularResult {
 }
 
 class ReconcileIpsTriangularUseCase {
+  String _cleanReference(String ref) {
+    final normalized = NormalizationUtil.normalize(ref);
+    if (normalized.contains('\\')) {
+      return normalized.split('\\').first.trim();
+    }
+    return normalized;
+  }
+
   IpsTriangularResult call({
     required List<List<dynamic>> ebirrCbsData,
     required List<List<dynamic>> ebirrSettlementData,
@@ -53,7 +61,7 @@ class ReconcileIpsTriangularUseCase {
 
     final crMap = {
       for (final r in cbsReportData.skip(1))
-        if (r.length > crRefIdx) NormalizationUtil.normalize(r[crRefIdx]): r
+        if (r.length > crRefIdx) _cleanReference(r[crRefIdx]): r
     };
 
     double totalMatchedAmount = 0.0;
@@ -65,20 +73,20 @@ class ReconcileIpsTriangularUseCase {
     for (final ecRow in ebirrCbsData.skip(1)) {
       if (ecRow.length <= ecRefIdx || ecRow.length <= ecThirdIdx || ecRow.length <= ecAmtIdx) continue;
 
-      final String bankRef = NormalizationUtil.normalize(ecRow[ecRefIdx]);
+      final String bankRef = _cleanReference(ecRow[ecRefIdx]);
       final String thirdRef = NormalizationUtil.normalize(ecRow[ecThirdIdx]);
-      final double amt = NormalizationUtil.parseAmount(ecRow[ecAmtIdx]);
+      final double amt = NormalizationUtil.parseAmount(ecRow[ecAmtIdx]).abs();
 
       final etMatch = etMap[thirdRef];
       final crMatch = crMap[bankRef];
 
       final bool isEtValid = etMatch != null &&
           etMatch.length > etAmtIdx &&
-          NormalizationUtil.amountsEqual(NormalizationUtil.parseAmount(etMatch[etAmtIdx]), amt);
+          NormalizationUtil.amountsEqual(NormalizationUtil.parseAmount(etMatch[etAmtIdx]).abs(), amt);
 
       final bool isCrValid = crMatch != null &&
           crMatch.length > crAmtIdx &&
-          NormalizationUtil.amountsEqual(NormalizationUtil.parseAmount(crMatch[crAmtIdx]), amt);
+          NormalizationUtil.amountsEqual(NormalizationUtil.parseAmount(crMatch[crAmtIdx]).abs(), amt);
 
       final bool isFullyMatched = isEtValid && isCrValid;
 
@@ -92,6 +100,8 @@ class ReconcileIpsTriangularUseCase {
 
       pairedRows.add({
         'isMatched': isFullyMatched,
+        'isEtValid': isEtValid,
+        'isCrValid': isCrValid,
         'key': bankRef,
         'ecRow': ecRow,
         'etRow': etMatch,

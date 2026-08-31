@@ -103,13 +103,27 @@ class IpsTriangularNotifier extends StateNotifier<IpsTriangularState> {
       final List<PlutoRow> pRows = [];
       for (final p in result.pairedRows) {
         final bool isMatched = p['isMatched'] as bool;
+        final bool isEtValid = p['isEtValid'] as bool? ?? false;
+        final bool isCrValid = p['isCrValid'] as bool? ?? false;
+        
+        String statusLabel = 'OK';
+        if (!isMatched) {
+          if (!isEtValid && !isCrValid) {
+            statusLabel = 'MISSING_IN_BOTH';
+          } else if (!isEtValid) {
+            statusLabel = 'MISSING_IN_SETTLE';
+          } else if (!isCrValid) {
+            statusLabel = 'MISSING_IN_GL';
+          }
+        }
+
         final ecRow = p['ecRow'] as List<dynamic>;
         final etRow = p['etRow'] as List<dynamic>?;
         final crRow = p['crRow'] as List<dynamic>?;
         final String key = p['key']?.toString() ?? (ecRow.isNotEmpty ? ecRow[0].toString() : '');
 
         final Map<String, PlutoCell> cells = {
-          'status': PlutoCell(value: isMatched ? 'MATCHED' : 'UNMATCHED'),
+          'status': PlutoCell(value: statusLabel),
           'key': PlutoCell(value: key),
         };
 

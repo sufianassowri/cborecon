@@ -2,11 +2,10 @@ import 'dart:io';
 import 'package:excel/excel.dart';
 import 'package:csv/csv.dart';
 
-import '../../domain/models/dispute_memo_item.dart';
+import '../../domain/models/remote_dispute_memo_item.dart';
 
-class DisputeMemoParser {
+class RemoteDisputeMemoParser {
   /// Define required keys for ATM ENQ and Dispute reports.
-  /// Note: '@ID' is intentionally left out to remain optional.
   static const List<String> _requiredAtmEnqKeys = [
     'RETRIEVAL.REF.NO',
     'TRANS.REF',
@@ -49,7 +48,7 @@ class DisputeMemoParser {
       final atmRow = atmMap[id]!;
       matched.add({
         ...disputeRow,
-        '@ID': atmRow['@ID']?.toString().trim() ?? '', // Safely map optional @ID
+        '@ID': atmRow['@ID']?.toString().trim() ?? '',
         'CREDIT.ACCT.NO': atmRow['CREDIT.ACCT.NO'] ?? atmRow['DEBIT.ACCT.NO'] ?? '',
         'COMPANY.CODE': atmRow['COMPANY.CODE'] ?? disputeRow['Branch'] ?? '',
         'RETRIEVAL.REF.NO': atmRow['RETRIEVAL.REF.NO'] ?? id,
@@ -68,17 +67,17 @@ class DisputeMemoParser {
     return matched;
   }
 
-  static DisputeMemoSummary generateMemoData({
+  static RemoteDisputeMemoSummary generateMemoData({
     required List<Map<String, dynamic>> matchedData,
   }) {
-    List<DisputeMemoItem> items = [];
+    List<RemoteDisputeMemoItem> items = [];
 
     for (var row in matchedData) {
       final amount = double.tryParse(row['Amount']?.toString() ?? '0') ?? 0.0;
       final branchRaw = row['Branch']?.toString() ?? row['COMPANY.CODE']?.toString() ?? '';
 
-      final item = DisputeMemoItem(
-        id: row['@ID']?.toString(), // Pass optional @ID
+      final item = RemoteDisputeMemoItem(
+        id: row['@ID']?.toString(),
         transRef: row['Id']?.toString() ?? row['id']?.toString() ?? row['TRANSREFERANCE'] ?? '',
         branch: branchRaw,
         customerAccount: row['Account']?.toString() ?? row['CustomerAccount'] ?? '',
@@ -107,7 +106,7 @@ class DisputeMemoParser {
       items.add(item);
     }
 
-    return DisputeMemoSummary.fromItems(items);
+    return RemoteDisputeMemoSummary.fromItems(items);
   }
 
   static bool _isValidRow(Map<String, dynamic> row, List<String> requiredKeys) {

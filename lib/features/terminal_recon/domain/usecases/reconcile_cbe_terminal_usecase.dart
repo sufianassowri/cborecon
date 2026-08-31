@@ -1,24 +1,37 @@
 import '../../../../core/utils/normalization_util.dart';
-import '../../../../core/utils/pan_masker_util.dart';
 import '../../../../core/errors/failures.dart';
 import '../entities/terminal_recon_row.dart';
+
 class ReconcileCbeTerminalUseCase {
   List<TerminalReconRow> call({
     required List<List<dynamic>> cbsData,
     required List<List<dynamic>> settlementData,
   }) {
     if (cbsData.isEmpty || settlementData.isEmpty) return [];
-    final List<String> cbsHeaders = cbsData[0].map((e) => e.toString().trim()).toList();
-    final List<String> setHeaders = settlementData[0].map((e) => e.toString().trim()).toList();
-    final int cbsRrnIdx = cbsHeaders.indexWhere((h) => h.toUpperCase().contains('RETRIEVAL.REF.NO') || h.toUpperCase().contains('RRN'));
-    final int cbsAmtIdx = cbsHeaders.indexWhere((h) => h.toUpperCase().contains('TXN.AMOUNT'));
-    final int cbsPanIdx = cbsHeaders.indexWhere((h) => h.toUpperCase().contains('PAN.NUMBER') || h.toUpperCase().contains('PAN'));
-    final int setRrnIdx = setHeaders.indexWhere((h) => h.toUpperCase().contains('REFNUM_F37') || h.toUpperCase().contains('RRN'));
-    final int setAmtIdx = setHeaders.indexWhere((h) => h.toUpperCase().contains('AMOUNT'));
-    final int setPanIdx = setHeaders.indexWhere((h) => h.toUpperCase().contains('CARD_NUMBER') || h.toUpperCase().contains('PAN'));
+    final List<String> cbsHeaders =
+        cbsData[0].map((e) => e.toString().trim()).toList();
+    final List<String> setHeaders =
+        settlementData[0].map((e) => e.toString().trim()).toList();
+    final int cbsRrnIdx = cbsHeaders.indexWhere((h) =>
+        h.toUpperCase().contains('RETRIEVAL.REF.NO') ||
+        h.toUpperCase().contains('RRN'));
+    final int cbsAmtIdx =
+        cbsHeaders.indexWhere((h) => h.toUpperCase().contains('TXN.AMOUNT'));
+    final int cbsPanIdx = cbsHeaders.indexWhere((h) =>
+        h.toUpperCase().contains('PAN.NUMBER') ||
+        h.toUpperCase().contains('PAN'));
+    final int setRrnIdx = setHeaders.indexWhere((h) =>
+        h.toUpperCase().contains('REFNUM_F37') ||
+        h.toUpperCase().contains('RRN'));
+    final int setAmtIdx =
+        setHeaders.indexWhere((h) => h.toUpperCase().contains('AMOUNT'));
+    final int setPanIdx = setHeaders.indexWhere((h) =>
+        h.toUpperCase().contains('CARD_NUMBER') ||
+        h.toUpperCase().contains('PAN'));
 
     if (cbsRrnIdx == -1 || setRrnIdx == -1) {
-      throw const ReconciliationFailure('RRN column missing in CBE reconciliation datasets.');
+      throw const ReconciliationFailure(
+          'RRN column missing in CBE reconciliation datasets.');
     }
     final Map<String, List<dynamic>> cbsMap = {};
     for (final row in cbsData.skip(1)) {
@@ -48,7 +61,10 @@ class ReconcileCbeTerminalUseCase {
       if (cbsRow != null && setRow != null) {
         // Compare Amount & PAN
         bool isOk = true;
-        if (cbsAmtIdx != -1 && setAmtIdx != -1 && cbsRow.length > cbsAmtIdx && setRow.length > setAmtIdx) {
+        if (cbsAmtIdx != -1 &&
+            setAmtIdx != -1 &&
+            cbsRow.length > cbsAmtIdx &&
+            setRow.length > setAmtIdx) {
           final cAmt = NormalizationUtil.normalize(cbsRow[cbsAmtIdx]);
           final sAmt = NormalizationUtil.normalize(setRow[setAmtIdx]);
           if (cAmt.isNotEmpty && sAmt.isNotEmpty && cAmt != sAmt) {
@@ -59,7 +75,8 @@ class ReconcileCbeTerminalUseCase {
           // User requested: Make comparison by PAN optional. If they match it is ok, if not no problem.
           // We still mask and extract the PAN for display in the grid, but do not invalidate the match.
         }
-        status = isOk ? TerminalReconStatus.ok : TerminalReconStatus.amountMismatch;
+        status =
+            isOk ? TerminalReconStatus.ok : TerminalReconStatus.amountMismatch;
       } else if (cbsRow != null && setRow == null) {
         status = TerminalReconStatus.missingInSettlement;
       } else {

@@ -1,14 +1,11 @@
 import 'package:flutter_riverpod/legacy.dart';
-import '../../domain/models/dispute_memo_item.dart';
-import '../../domain/models/memo_format_type.dart';
-import '../../data/datasources/dispute_memo_parser.dart';
+import '../../domain/models/remote_dispute_memo_item.dart';
+import '../../data/datasources/remote_dispute_memo_parser.dart';
 
-class DisputeMemoState {
+class RemoteDisputeMemoState {
   final String? atmEnqPath;
   final String? disputeReportPath;
-
-  final MemoFormatType memoFormat;
-  final DisputeMemoSummary? summary;
+  final RemoteDisputeMemoSummary? summary;
   final bool isLoading;
   final String? error;
 
@@ -19,10 +16,9 @@ class DisputeMemoState {
   final String preparedBy;
   final String checkedBy;
 
-  DisputeMemoState({
+  RemoteDisputeMemoState({
     this.atmEnqPath,
     this.disputeReportPath,
-    this.memoFormat = MemoFormatType.fahmi,
     this.summary,
     this.isLoading = false,
     this.error,
@@ -33,12 +29,10 @@ class DisputeMemoState {
     this.checkedBy = 'Shemsia Hamid Aman',
   });
 
-  DisputeMemoState copyWith({
+  RemoteDisputeMemoState copyWith({
     String? atmEnqPath,
     String? disputeReportPath,
-
-    MemoFormatType? memoFormat,
-    DisputeMemoSummary? summary,
+    RemoteDisputeMemoSummary? summary,
     bool? isLoading,
     String? error,
     String? disputedAtmAcc,
@@ -47,11 +41,9 @@ class DisputeMemoState {
     String? preparedBy,
     String? checkedBy,
   }) {
-    return DisputeMemoState(
+    return RemoteDisputeMemoState(
       atmEnqPath: atmEnqPath ?? this.atmEnqPath,
       disputeReportPath: disputeReportPath ?? this.disputeReportPath,
-
-      memoFormat: memoFormat ?? this.memoFormat,
       summary: summary ?? this.summary,
       isLoading: isLoading ?? this.isLoading,
       error: error,
@@ -64,8 +56,8 @@ class DisputeMemoState {
   }
 }
 
-class DisputeMemoNotifier extends StateNotifier<DisputeMemoState> {
-  DisputeMemoNotifier() : super(DisputeMemoState());
+class RemoteDisputeMemoNotifier extends StateNotifier<RemoteDisputeMemoState> {
+  RemoteDisputeMemoNotifier() : super(RemoteDisputeMemoState());
 
   void setAtmEnqPath(String path) {
     state = state.copyWith(atmEnqPath: path);
@@ -75,11 +67,6 @@ class DisputeMemoNotifier extends StateNotifier<DisputeMemoState> {
   void setDisputeReportPath(String path) {
     state = state.copyWith(disputeReportPath: path);
     _process();
-  }
-
-
-  void setMemoFormat(MemoFormatType format) {
-    state = state.copyWith(memoFormat: format);
   }
 
   void updateAccounts({
@@ -106,12 +93,12 @@ class DisputeMemoNotifier extends StateNotifier<DisputeMemoState> {
 
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final matched = await DisputeMemoParser.parseAndMatchReports(
+      final matched = await RemoteDisputeMemoParser.parseAndMatchReports(
         atmEnqPath: currentAtmPath,
         disputeReportPath: currentDisputePath,
       );
 
-      final summary = DisputeMemoParser.generateMemoData(
+      final summary = RemoteDisputeMemoParser.generateMemoData(
         matchedData: matched,
       );
 
@@ -121,7 +108,8 @@ class DisputeMemoNotifier extends StateNotifier<DisputeMemoState> {
     }
   }
 }
-final disputeMemoProvider =
-StateNotifierProvider<DisputeMemoNotifier, DisputeMemoState>((ref) {
-  return DisputeMemoNotifier();
+
+final remoteDisputeMemoProvider =
+StateNotifierProvider<RemoteDisputeMemoNotifier, RemoteDisputeMemoState>((ref) {
+  return RemoteDisputeMemoNotifier();
 });

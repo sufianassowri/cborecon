@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
-import '../../domain/models/dispute_memo_item.dart';
 import '../../domain/models/memo_format_type.dart';
 import '../../presentation/providers/dispute_memo_provider.dart';
 
@@ -13,30 +12,12 @@ class ExcelExporter {
     final summary = state.summary;
     if (summary == null) return null;
     final format = state.memoFormat;
-    final type = state.disputeType;
     final currentDate = DateFormat('dd/MM/yyyy').format(DateTime.now());
     final excel = Excel.createExcel();
     final Sheet sheet = excel[excel.getDefaultSheet()!];
     List<String> headers = [];
 
-    if (type == DisputeType.remoteOnUs) {
-      headers = [
-        'TRANS_REFERANCE',
-        'PAN',
-        'Transaction Date',
-        'CustomerAccount',
-        'Customer Name',
-        'Acquirer Bank',
-        'VAT Account',
-        'Amount',
-        'Com_amount',
-        'Disaster commission',
-        'VAT amount',
-        'TOTAL',
-        'RRN',
-        'FU Dispute ID', // Added after RRN for Remote On-Us
-      ];
-    } else if (format == MemoFormatType.fahmi) {
+    if (format == MemoFormatType.fahmi) {
       headers = [
         'CustomerName',
         'PAN',
@@ -81,24 +62,7 @@ class ExcelExporter {
     // 2. Write Data Rows
     for (var item in summary.items) {
       List<CellValue> row = [];
-      if (type == DisputeType.remoteOnUs) {
-        row = [
-          TextCellValue(item.transRef),
-          TextCellValue(item.pan),
-          TextCellValue(item.transactionDate),
-          TextCellValue(item.customerAccount),
-          TextCellValue(item.customerName),
-          TextCellValue(item.acquirerBank),
-          TextCellValue(item.debitVatAcc),
-          DoubleCellValue(item.amount),
-          DoubleCellValue(item.pl62174),
-          DoubleCellValue(item.edrrfAmount),
-          DoubleCellValue(item.vatAmount),
-          DoubleCellValue(item.total),
-          TextCellValue(item.rrn),
-          TextCellValue(item.fuDisputeId), // FU Dispute ID value right after RRN
-        ];
-      } else if (format == MemoFormatType.fahmi) {
+      if (format == MemoFormatType.fahmi) {
         row = [
           TextCellValue(item.customerName),
           TextCellValue(item.pan),
@@ -140,24 +104,7 @@ class ExcelExporter {
 
     // 3. Write Summary Total Row
     List<CellValue> totalRow = [];
-    if (type == DisputeType.remoteOnUs) {
-      totalRow = [
-        TextCellValue('TOTAL'),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        DoubleCellValue(summary.totalAmount),
-        DoubleCellValue(summary.totalPl62174),
-        DoubleCellValue(summary.totalEdrfAmount),
-        DoubleCellValue(summary.totalVatAmount),
-        DoubleCellValue(summary.grandTotal),
-        TextCellValue(''), // Empty spacing cell under RRN
-        TextCellValue(''), // Empty spacing cell under FU Dispute ID
-      ];
-    } else if (format == MemoFormatType.fahmi) {
+    if (format == MemoFormatType.fahmi) {
       totalRow = [
         TextCellValue('TOTAL'),
         TextCellValue(''),
@@ -201,40 +148,7 @@ class ExcelExporter {
     sheet.appendRow([TextCellValue('')]);
 
     // 4. Append Custom Footer based on Dispute Type
-    if (type == DisputeType.remoteOnUs) {
-      sheet.appendRow([
-        TextCellValue(state.disputedAtmAcc),
-        DoubleCellValue(summary.totalAmount),
-        TextCellValue(''),
-        TextCellValue('CUSTOMER ACCOUNT'),
-        DoubleCellValue(summary.grandTotal),
-      ]);
-      sheet.appendRow([
-        TextCellValue(state.commPayableAcc),
-        DoubleCellValue(summary.totalPl62174),
-        TextCellValue(''),
-        TextCellValue('Checked By :-${state.checkedBy}'),
-      ]);
-      sheet.appendRow([
-        TextCellValue(state.disasterRiskAcc),
-        DoubleCellValue(summary.totalEdrfAmount),
-      ]);
-      sheet.appendRow([
-        TextCellValue('Prepared By: ${state.preparedBy}'),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue('Signature :-  ___________'),
-      ]);
-      sheet.appendRow([
-        TextCellValue('Signature :-  ___________'),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue('Date :$currentDate'),
-      ]);
-      sheet.appendRow([
-        TextCellValue('Date :$currentDate'),
-      ]);
-    } else {
+
       sheet.appendRow([
         TextCellValue(''),
         TextCellValue('Prepared By: ${state.preparedBy}'),
@@ -253,12 +167,11 @@ class ExcelExporter {
         TextCellValue(''),
         TextCellValue('Date: $currentDate'),
       ]);
-    }
 
     // Save File
     final outputFile = await FilePicker.saveFile(
       dialogTitle: 'Save Dispute Memo Excel File',
-      fileName: '${type == DisputeType.onUs ? "OnUs" : "RemoteOnUs"}_Dispute_Memo.xlsx',
+      fileName: 'OnUs_Dispute_Memo.xlsx',
       allowedExtensions: ['xlsx'],
       type: FileType.custom,
     );

@@ -123,12 +123,33 @@ class SettlementRowEntity {
   }
 
   /// Create entity from raw row and header index mapping
-  factory SettlementRowEntity.fromRawRow(
-    List<dynamic> row,
-    Map<String, int> headerMap,
-  ) {
-    String getVal(String key) {
-      final index = headerMap[key.toLowerCase()];
+  static SettlementRowEntity fromRawRow(List<dynamic> row, Map<String, int> headerMap) {
+    String getVal(List<String> keywords, {int? defaultIndex}) {
+      int? index;
+      // 1. Try exact match first
+      for (final kw in keywords) {
+        index = headerMap[kw.toLowerCase()];
+        if (index != null) break;
+      }
+      // 2. Try partial/fuzzy match if exact match fails
+      if (index == null) {
+        for (final kw in keywords) {
+          final target = kw.toLowerCase().replaceAll('_', '');
+          for (final key in headerMap.keys) {
+            final normalizedKey = key.toLowerCase().replaceAll('_', '');
+            if (normalizedKey.contains(target) || target.contains(normalizedKey)) {
+              index = headerMap[key];
+              break;
+            }
+          }
+          if (index != null) break;
+        }
+      }
+      // 3. Fallback to default index if header missing
+      if (index == null && defaultIndex != null && defaultIndex < row.length) {
+        index = defaultIndex;
+      }
+
       if (index != null && index >= 0 && index < row.length) {
         final val = row[index];
         if (val == null) return '';
@@ -145,30 +166,26 @@ class SettlementRowEntity {
       return '';
     }
 
-    final amountStr = getVal('amount').replaceAll(',', '');
-    final amountVal = double.tryParse(amountStr) ?? 0.0;
-    final dateStr = getVal('transaction_date').isEmpty ? getVal('date') : getVal('transaction_date');
+    final dateStr = getVal(['transaction_date', 'date', 'time'], defaultIndex: 6);
 
     return SettlementRowEntity(
-      issuer: getVal('issuer'),
-      acquirer: getVal('acquirer'),
-      mti: getVal('mti'),
-      cardNumber: getVal('card_number').isEmpty ? getVal('pan') : getVal('card_number'),
-      amount: amountVal,
-      amountRaw: getVal('amount'),
-      currency: getVal('currency').isEmpty ? 'ETB' : getVal('currency'),
+      issuer: getVal(['issuer', 'issuing', 'bank'], defaultIndex: 0),
+      acquirer: getVal(['acquirer', 'acquiring'], defaultIndex: 1),
+      mti: getVal(['mti', 'message_type'], defaultIndex: 2),
+      cardNumber: getVal(['card_number', 'pan', 'card_no', 'card'], defaultIndex: 3),
+      amount: double.tryParse(getVal(['amount', 'txn_amount', 'value'], defaultIndex: 4).replaceAll(',', '')) ?? 0.0,
+      amountRaw: getVal(['amount', 'txn_amount', 'value'], defaultIndex: 4),
+      currency: getVal(['currency', 'ccy'], defaultIndex: 5).isEmpty ? 'ETB' : getVal(['currency', 'ccy'], defaultIndex: 5),
       transactionDate: dateStr,
       parsedDate: parseFlexibleDate(dateStr),
-      transactionDescription: getVal('transaction_description').isEmpty
-          ? (getVal('description').isEmpty ? 'UNKNOWN' : getVal('description'))
-          : getVal('transaction_description'),
-      terminalId: getVal('terminal_id').isEmpty ? getVal('terminal') : getVal('terminal_id'),
-      transactionPlace: getVal('transaction_place').isEmpty ? getVal('place') : getVal('transaction_place'),
-      stanF11: getVal('stan_f11').isEmpty ? getVal('stan') : getVal('stan_f11'),
-      refnumF37: getVal('refnum_f37').isEmpty ? (getVal('rrn').isEmpty ? getVal('refnum') : getVal('rrn')) : getVal('refnum_f37'),
-      authidrespF38: getVal('authidresp_f38').isEmpty ? getVal('authid') : getVal('authidresp_f38'),
-      feUtrnno: getVal('fe_utrnno').isEmpty ? getVal('fe_utrn') : getVal('fe_utrnno'),
-      boUtrnno: getVal('bo_utrnno').isEmpty ? getVal('bo_utrn') : getVal('bo_utrnno'),
+      transactionDescription: getVal(['transaction_description', 'description', 'desc', 'txn_desc'], defaultIndex: 7),
+      terminalId: getVal(['terminal_id', 'terminal', 'tid'], defaultIndex: 8),
+      transactionPlace: getVal(['transaction_place', 'place', 'location'], defaultIndex: 9),
+      stanF11: getVal(['stan_f11', 'stan'], defaultIndex: 10),
+      refnumF37: getVal(['refnum_f37', 'refnum', 'rrn', 'retrieval'], defaultIndex: 11),
+      authidrespF38: getVal(['authidresp_f38', 'authid', 'auth_code', 'approval'], defaultIndex: 12),
+      feUtrnno: getVal(['fe_utrnno', 'fe_utrn'], defaultIndex: 13),
+      boUtrnno: getVal(['bo_utrnno', 'bo_utrn'], defaultIndex: 14),
     );
   }
 

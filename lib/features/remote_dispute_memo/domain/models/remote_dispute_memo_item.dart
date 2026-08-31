@@ -1,6 +1,6 @@
 import 'dart:math';
 
-class DisputeMemoItem {
+class RemoteDisputeMemoItem {
   // Optional ATM ENQ @ID Field
   final String? id;
 
@@ -12,7 +12,6 @@ class DisputeMemoItem {
   final String customerName; // Customer
   final String pan;
   final String transactionDate;
-
 
   // Matching ATM ENQ / Optional Fields
   final String retrievalRefNo; // RETRIEVAL.REF.NO
@@ -35,7 +34,7 @@ class DisputeMemoItem {
   final String requestedDate;
   final String assignedDate;
 
-  DisputeMemoItem({
+  RemoteDisputeMemoItem({
     this.id,
     required this.transRef,
     required this.branch,
@@ -65,10 +64,19 @@ class DisputeMemoItem {
 
   // Business Logic Calculations
 
-  /// Calculates PL Commission (COM):
-  /// - Always 0.5% (0.005) for On Us
+  /// Calculates PL Commission (COM) for Remote On-Us:
+  /// - on/after May 22, 2026: 0.6% (0.006)
+  /// - before May 22, 2026: 0.5% (0.005)
   double get pl62174 {
     double rate = 0.005;
+
+    final parsedDate = _parseTransactionDate(transactionDate);
+    final cutoffDate = DateTime(2026, 5, 22);
+
+    if (parsedDate != null && !parsedDate.isBefore(cutoffDate)) {
+      rate = 0.006;
+    }
+
     return _roundUp(amount * rate, 2);
   }
 
@@ -103,10 +111,27 @@ class DisputeMemoItem {
     double fixedVal = double.parse((value * mod).toStringAsFixed(8));
     return fixedVal.ceil() / mod;
   }
+
+  /// Parses standard ISO dates (`YYYY-MM-DD`) and common raw logs (`DD/MM/YYYY` or `DD-MM-YYYY`)
+  static DateTime? _parseTransactionDate(String dateStr) {
+    final directParsed = DateTime.tryParse(dateStr);
+    if (directParsed != null) return directParsed;
+
+    final parts = dateStr.split(RegExp(r'[/.-]'));
+    if (parts.length == 3) {
+      final day = int.tryParse(parts[0]);
+      final month = int.tryParse(parts[1]);
+      final year = int.tryParse(parts[2]);
+      if (day != null && month != null && year != null) {
+        return DateTime(year, month, day);
+      }
+    }
+    return null;
+  }
 }
 
-class DisputeMemoSummary {
-  final List<DisputeMemoItem> items;
+class RemoteDisputeMemoSummary {
+  final List<RemoteDisputeMemoItem> items;
   final double totalAmount;
   final double totalEdrrfAmount;
   final double totalVatAmount;
@@ -116,7 +141,7 @@ class DisputeMemoSummary {
   double get totalEdrfAmount => totalEdrrfAmount;
   double get grandTotal => totalOverall;
 
-  DisputeMemoSummary({
+  RemoteDisputeMemoSummary({
     required this.items,
     required this.totalAmount,
     required this.totalEdrrfAmount,
@@ -125,7 +150,7 @@ class DisputeMemoSummary {
     required this.totalOverall,
   });
 
-  factory DisputeMemoSummary.fromItems(List<DisputeMemoItem> items) {
+  factory RemoteDisputeMemoSummary.fromItems(List<RemoteDisputeMemoItem> items) {
     double amt = 0, edrrf = 0, vat = 0, pl = 0, tot = 0;
     for (var item in items) {
       amt += item.amount;
@@ -134,7 +159,7 @@ class DisputeMemoSummary {
       pl += item.pl62174;
       tot += item.total;
     }
-    return DisputeMemoSummary(
+    return RemoteDisputeMemoSummary(
       items: items,
       totalAmount: amt,
       totalEdrrfAmount: edrrf,

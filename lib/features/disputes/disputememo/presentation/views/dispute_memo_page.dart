@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../../../../core/widgets/responsive_shell.dart';
 import '../../data/persers/excel_exporter.dart';
@@ -130,7 +129,7 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(disputeMemoProvider);
-    final currentDate = DateFormat('dd/MM/yyyy').format(DateTime.now());
+
     return ResponsiveShell(
       currentRoute: '/dispute_memo',
       title: 'Dispute Memo Generator',
@@ -186,47 +185,26 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
                             : 'Dispute Loaded',
                       ),
                     ),
-                    DropdownButton<DisputeType>(
-                      value: state.disputeType,
+                    DropdownButton<MemoFormatType>(
+                      value: state.memoFormat,
                       items: const [
                         DropdownMenuItem(
-                          value: DisputeType.onUs,
-                          child: Text('On Us Dispute Memo'),
+                          value: MemoFormatType.fahmi,
+                          child: Text('Fahmi Format'),
                         ),
                         DropdownMenuItem(
-                          value: DisputeType.remoteOnUs,
-                          child: Text('Remote On Us Memo'),
+                          value: MemoFormatType.geda,
+                          child: Text('Geda Format'),
                         ),
                       ],
                       onChanged: (v) {
                         if (v != null) {
                           ref
                               .read(disputeMemoProvider.notifier)
-                              .setDisputeType(v);
+                              .setMemoFormat(v);
                         }
                       },
                     ),
-                    if (state.disputeType == DisputeType.onUs)
-                      DropdownButton<MemoFormatType>(
-                        value: state.memoFormat,
-                        items: const [
-                          DropdownMenuItem(
-                            value: MemoFormatType.fahmi,
-                            child: Text('Fahmi Format'),
-                          ),
-                          DropdownMenuItem(
-                            value: MemoFormatType.geda,
-                            child: Text('Geda Format'),
-                          ),
-                        ],
-                        onChanged: (v) {
-                          if (v != null) {
-                            ref
-                                .read(disputeMemoProvider.notifier)
-                                .setMemoFormat(v);
-                          }
-                        },
-                      ),
                     OutlinedButton.icon(
                       onPressed: _resetState,
                       icon: const Icon(Icons.restart_alt),
@@ -288,17 +266,9 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
                     ),
                   ),
                 ),
-                key: ValueKey(
-                    '${state.memoFormat}_${state.disputeType}'),
-                columns: _buildColumns(
-                  state.memoFormat,
-                  state.disputeType,
-                ),
-                rows: _buildRows(
-                  state.summary!,
-                  state.memoFormat,
-                  state.disputeType,
-                ),
+                key: ValueKey('${state.memoFormat}_onUs'),
+                columns: _buildColumns(state.memoFormat),
+                rows: _buildRows(state.summary!, state.memoFormat),
               ),
             ),
             const SizedBox(height: 12),
@@ -306,9 +276,7 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
-                  child: state.disputeType == DisputeType.remoteOnUs
-                      ? _buildRemoteOnUsFooter(state, currentDate)
-                      : _buildOnUsFooter(state),
+                  child: _buildOnUsFooter(state),
                 ),
               ),
           ],
@@ -317,134 +285,6 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
     );
   }
 
-  /// Detailed Accounting Footer for Remote On-Us
-  Widget _buildRemoteOnUsFooter(DisputeMemoState state, String currentDate) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 3,
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _atmAccController,
-                      onChanged: (val) {
-                        ref.read(disputeMemoProvider.notifier).updateAccounts(
-                          disputedAtmAcc: val,
-                        );
-                      },
-                      decoration: const InputDecoration(
-                        labelText: '1. Disputed ATM ACC',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    state.summary!.totalAmount.toStringAsFixed(2),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _commAccController,
-                      onChanged: (val) {
-                        ref.read(disputeMemoProvider.notifier).updateAccounts(
-                          commPayableAcc: val,
-                        );
-                      },
-                      decoration: const InputDecoration(
-                        labelText: '2. Commission Payable ACC',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    state.summary!.totalPl62174.toStringAsFixed(2),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _disasterAccController,
-                      onChanged: (val) {
-                        ref.read(disputeMemoProvider.notifier).updateAccounts(
-                          disasterRiskAcc: val,
-                        );
-                      },
-                      decoration: const InputDecoration(
-                        labelText: '3. Disaster Risk ACC',
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    state.summary!.totalEdrfAmount.toStringAsFixed(2),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 24),
-        Expanded(
-          flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'CUSTOMER ACCOUNT',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    state.summary!.grandTotal.toStringAsFixed(2),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: _preparedByController,
-                onChanged: (val) {
-                  ref.read(disputeMemoProvider.notifier).updateAccounts(
-                    preparedBy: val,
-                  );
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Prepared By',
-                ),
-              ),
-              TextField(
-                controller: _checkedByController,
-                onChanged: (val) {
-                  ref.read(disputeMemoProvider.notifier).updateAccounts(
-                    checkedBy: val,
-                  );
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Checked By',
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text('Date: $currentDate'),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
   /// Simple Prepared By / Checked By Footer for On-Us
   Widget _buildOnUsFooter(DisputeMemoState state) {
@@ -483,95 +323,7 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
     );
   }
 
-  List<PlutoColumn> _buildColumns(MemoFormatType format, DisputeType type) {
-    if (type == DisputeType.remoteOnUs) {
-      return [
-        PlutoColumn(
-          title: 'TRANS_REFERANCE',
-          field: 'ref',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'PAN',
-          field: 'pan',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'Transaction Date',
-          field: 'date',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'CustomerAccount',
-          field: 'account',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'Customer Name',
-          field: 'name',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'Acquirer Bank',
-          field: 'acquirer',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'VAT Account',
-          field: 'vat_acc',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'Amount',
-          field: 'amount',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'Com_amount',
-          field: 'pl',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'Disaster commission',
-          field: 'edrf',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'VAT amount',
-          field: 'vat',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'TOTAL',
-          field: 'total',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'RRN',
-          field: 'rrn',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'FU Dispute ID', // FU Dispute ID Column right after RRN
-          field: 'fuDisputeId',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-      ];
-    }
+  List<PlutoColumn> _buildColumns(MemoFormatType format) {
     if (format == MemoFormatType.fahmi) {
       return [
         PlutoColumn(
@@ -764,30 +516,12 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
   List<PlutoRow> _buildRows(
       DisputeMemoSummary summary,
       MemoFormatType format,
-      DisputeType type,
       ) {
     List<PlutoRow> rows = [];
 
     for (var item in summary.items) {
       Map<String, PlutoCell> cells = {};
-      if (type == DisputeType.remoteOnUs) {
-        cells = {
-          'ref': PlutoCell(value: item.transRef),
-          'pan': PlutoCell(value: item.pan),
-          'date': PlutoCell(value: item.transactionDate),
-          'account': PlutoCell(value: item.customerAccount),
-          'name': PlutoCell(value: item.customerName),
-          'acquirer': PlutoCell(value: item.acquirerBank),
-          'vat_acc': PlutoCell(value: item.debitVatAcc),
-          'amount': PlutoCell(value: item.amount),
-          'pl': PlutoCell(value: item.pl62174),
-          'edrf': PlutoCell(value: item.edrrfAmount),
-          'vat': PlutoCell(value: item.vatAmount),
-          'total': PlutoCell(value: item.total),
-          'rrn': PlutoCell(value: item.rrn),
-          'fuDisputeId': PlutoCell(value: item.fuDisputeId), // Remote On-Us cell mapping
-        };
-      } else if (format == MemoFormatType.fahmi) {
+      if (format == MemoFormatType.fahmi) {
         cells = {
           'name': PlutoCell(value: item.customerName),
           'pan': PlutoCell(value: item.pan),
@@ -829,24 +563,7 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
 
     // Add TOTAL summary row
     Map<String, PlutoCell> totalCells = {};
-    if (type == DisputeType.remoteOnUs) {
-      totalCells = {
-        'ref': PlutoCell(value: 'TOTAL'),
-        'pan': PlutoCell(value: ''),
-        'date': PlutoCell(value: ''),
-        'account': PlutoCell(value: ''),
-        'name': PlutoCell(value: ''),
-        'acquirer': PlutoCell(value: ''),
-        'vat_acc': PlutoCell(value: ''),
-        'amount': PlutoCell(value: summary.totalAmount),
-        'pl': PlutoCell(value: summary.totalPl62174),
-        'edrf': PlutoCell(value: summary.totalEdrfAmount),
-        'vat': PlutoCell(value: summary.totalVatAmount),
-        'total': PlutoCell(value: summary.grandTotal),
-        'rrn': PlutoCell(value: ''),
-        'fuDisputeId': PlutoCell(value: ''),
-      };
-    } else if (format == MemoFormatType.fahmi) {
+    if (format == MemoFormatType.fahmi) {
       totalCells = {
         'name': PlutoCell(value: 'TOTAL'),
         'pan': PlutoCell(value: ''),

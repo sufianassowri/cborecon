@@ -54,29 +54,34 @@ class ExcelWorkbookExporter {
   ) {
     final sheet = excel[sheetName];
 
+    String sanitize(String input) {
+      // Strip control characters that corrupt XML (keep tabs, newlines, carriage returns)
+      return input.replaceAll(RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F]'), '').trim();
+    }
+
     // Header Row
     final headers = SettlementHeaders.standard;
-    final List<CellValue> headerCells = headers.map((h) => TextCellValue(h)).toList();
+    final List<CellValue> headerCells = headers.map((h) => TextCellValue(sanitize(h))).toList();
     sheet.appendRow(headerCells);
 
     // Data Rows
     for (final r in rows) {
       final List<CellValue> rowCells = [
-        TextCellValue(r.issuer),
-        TextCellValue(r.acquirer),
-        TextCellValue(r.mti),
-        TextCellValue(r.cardNumber), // TextCellValue preserves PAN exactly!
+        TextCellValue(sanitize(r.issuer)),
+        TextCellValue(sanitize(r.acquirer)),
+        TextCellValue(sanitize(r.mti)),
+        TextCellValue(sanitize(r.cardNumber)), // TextCellValue preserves PAN exactly!
         DoubleCellValue(r.amount),
-        TextCellValue(r.currency),
-        TextCellValue(r.transactionDate),
-        TextCellValue(r.transactionDescription),
-        TextCellValue(r.terminalId),
-        TextCellValue(r.transactionPlace),
-        TextCellValue(r.stanF11), // Preserves STAN without exponent
-        TextCellValue(r.refnumF37), // Preserves RRN without exponent
-        TextCellValue(r.authidrespF38),
-        TextCellValue(r.feUtrnno), // Preserves Fe_utrnno
-        TextCellValue(r.boUtrnno), // Preserves Bo_utrnno
+        TextCellValue(sanitize(r.currency)),
+        TextCellValue(sanitize(r.transactionDate)),
+        TextCellValue(sanitize(r.transactionDescription)),
+        TextCellValue(sanitize(r.terminalId)),
+        TextCellValue(sanitize(r.transactionPlace)),
+        TextCellValue(sanitize(r.stanF11)), // Preserves STAN without exponent
+        TextCellValue(sanitize(r.refnumF37)), // Preserves RRN without exponent
+        TextCellValue(sanitize(r.authidrespF38)),
+        TextCellValue(sanitize(r.feUtrnno)), // Preserves Fe_utrnno
+        TextCellValue(sanitize(r.boUtrnno)), // Preserves Bo_utrnno
       ];
       sheet.appendRow(rowCells);
     }

@@ -3,8 +3,10 @@ import 'dart:io';
 
 import 'package:csv/csv.dart';
 import 'package:excel/excel.dart';
+import 'package:excel2003/excel2003.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:html/parser.dart' show parse;
 import '../entities/settlement_row_entity.dart';
 
 class MergedSettlementResult {
@@ -71,7 +73,7 @@ class SettlementMergerEngine {
     if (clean.length > 31) {
       clean = clean.substring(0, 31);
     }
-    return clean;
+    return clean.toUpperCase();
   }
 
   static String _decodeBytes(Uint8List bytes) {
@@ -103,6 +105,26 @@ class SettlementMergerEngine {
         .replaceAll('\uFEFF', '')
         .replaceAll('\uFFFE', '')
         .replaceAll('\u0000', '');
+  }
+
+  static List<List<dynamic>> _parseTextToCsv(String text) {
+    String delimiter = ',';
+    final lines = text.split('\n').take(15).toList();
+    for (final line in lines) {
+      if (line.contains('\t')) {
+        delimiter = '\t';
+        break;
+      } else if (line.contains(';')) {
+        delimiter = ';';
+        break;
+      }
+    }
+
+    return CsvToListConverter(
+      fieldDelimiter: delimiter,
+      shouldParseNumbers: false,
+      eol: '\n',
+    ).convert(text);
   }
 
   /// Process multiple PlatformFiles and merge into unified sorted dataset + category groups
@@ -165,19 +187,91 @@ class SettlementMergerEngine {
 
       // 1. Detect Header Row
       int headerRowIdx = -1;
-      Map<String, int> headerMap = {};
-
       for (int r = 0; r < rawRows.length && r < 15; r++) {
         if (SettlementHeaders.isHeaderRow(rawRows[r])) {
           headerRowIdx = r;
-          final headerList = rawRows[r];
-          for (int c = 0; c < headerList.length; c++) {
-            final colName = headerList[c]?.toString().toLowerCase().trim().replaceAll(' ', '_') ?? '';
-            if (colName.isNotEmpty) {
-              headerMap[colName] = c;
+          break;
+        }
+      }
+
+      // 1.5 Clean up merged/spillover columns (e.g., Transaction_Date split across G and H)
+      if (headerRowIdx >= 0) {
+        final headerList = rawRows[headerRowIdx];
+        List<int> columnsToDelete = [];
+
+        // Consolidate data into the left column if the current column's header is empty
+        for (int c = 1; c < headerList.length; c++) {
+          final colName = headerList[c]?.toString().trim() ?? '';
+          if (colName.isEmpty) {
+            bool canMerge = true;
+            for (int r = 0; r < rawRows.length; r++) {
+              if (r == headerRowIdx) continue;
+              final row = rawRows[r];
+              if (row.length <= c) continue;
+              
+              final leftVal = row[c - 1]?.toString().trim() ?? '';
+              final currVal = row[c]?.toString().trim() ?? '';
+              // If both have data, they are not mutually exclusive; can't merge safely
+              if (leftVal.isNotEmpty && currVal.isNotEmpty) {
+                canMerge = false;
+                break;
+              }
+            }
+
+            if (canMerge) {
+              for (int r = 0; r < rawRows.length; r++) {
+                final row = rawRows[r];
+                if (row.length <= c) continue;
+                
+                final leftVal = row[c - 1]?.toString().trim() ?? '';
+                final currVal = row[c]?.toString().trim() ?? '';
+                
+                if (leftVal.isEmpty && currVal.isNotEmpty) {
+                  row[c - 1] = row[c];
+                }
+                row[c] = ''; // Clear it out after merging
+              }
             }
           }
-          break;
+        }
+
+        // Identify completely empty columns across all rows to delete
+        for (int c = 0; c < headerList.length; c++) {
+          bool isEmpty = true;
+          for (int r = 0; r < rawRows.length; r++) {
+            if (rawRows[r].length > c) {
+              final val = rawRows[r][c]?.toString().trim() ?? '';
+              if (val.isNotEmpty) {
+                isEmpty = false;
+                break;
+              }
+            }
+          }
+          if (isEmpty) {
+            columnsToDelete.add(c);
+          }
+        }
+
+        // Delete empty columns from right to left to preserve indices
+        columnsToDelete.sort((a, b) => b.compareTo(a));
+        for (int r = 0; r < rawRows.length; r++) {
+          for (final colIdx in columnsToDelete) {
+            if (colIdx < rawRows[r].length) {
+              rawRows[r].removeAt(colIdx);
+            }
+          }
+        }
+      }
+
+      // Re-evaluate headerMap after columns are cleaned up
+      Map<String, int> headerMap = {};
+      if (headerRowIdx >= 0) {
+        final headerList = rawRows[headerRowIdx];
+        for (int c = 0; c < headerList.length; c++) {
+          final colName = headerList[c]?.toString().toLowerCase().trim().replaceAll(' ', '_') ?? '';
+          if (colName.isNotEmpty) {
+            headerMap[colName] = c;
+          }
         }
       }
 
@@ -220,7 +314,18 @@ class SettlementMergerEngine {
           continue;
         }
 
+        // Filter out known report metadata / garbage rows
+        final rawText = row.map((e) => e?.toString().toLowerCase().trim() ?? '').join(' ');
+        if (rawText.contains('bank reconciliation report') ||
+            rawText.contains('for settlement day:') ||
+            rawText.contains('financial institution:')) {
+          emptyRowsPurged++; // Treat as purged garbage
+          continue;
+        }
+
         final entity = SettlementRowEntity.fromRawRow(row, headerMap);
+
+
         allRows.add(entity);
       }
     }
@@ -239,16 +344,16 @@ class SettlementMergerEngine {
 
 
 
-    // 4. Segment into sheets by Transaction_Description
+    // 4. Merge all together without filtering by Transaction_Description
     final Map<String, List<SettlementRowEntity>> categorized = {};
     double totalVolume = 0.0;
 
     for (final row in allRows) {
       totalVolume += row.amount;
-      final rawCategory = row.transactionDescription.trim().isEmpty ? 'Uncategorized' : row.transactionDescription.trim();
-      final sheetKey = sanitizeSheetName(rawCategory);
-
-      categorized.putIfAbsent(sheetKey, () => []).add(row);
+    }
+    
+    if (allRows.isNotEmpty) {
+      categorized['ALL_MERGED'] = allRows;
     }
 
     stopwatch.stop();
@@ -283,7 +388,27 @@ class SettlementMergerEngine {
     if (bytes == null || bytes.isEmpty) return rows;
 
     final ext = file.extension?.toLowerCase() ?? '';
-    if (ext == 'xlsx' || ext == 'xls') {
+    
+    if (ext == 'xls') {
+      try {
+        final reader = XlsReader.fromBytes(bytes);
+        reader.open();
+        for (final table in reader.sheetNames) {
+          final sheetIdx = reader.sheetNames.indexOf(table);
+          final sheet = reader.sheet(sheetIdx);
+          for (int r = sheet.firstRow; r < sheet.lastRow; r++) {
+            List<String> rowData = [];
+            for (int c = sheet.firstCol; c < sheet.lastCol; c++) {
+              rowData.add(sheet.cell(r, c)?.toString() ?? '');
+            }
+            rows.add(rowData);
+          }
+          if (rows.isNotEmpty) break; // Process the primary active sheet
+        }
+      } catch (_) {
+        _fallbackTextReading(bytes, rows);
+      }
+    } else if (ext == 'xlsx') {
       try {
         final excel = Excel.decodeBytes(bytes);
         for (final table in excel.tables.keys) {
@@ -294,30 +419,46 @@ class SettlementMergerEngine {
           if (rows.isNotEmpty) break; // Process the primary active sheet
         }
       } catch (_) {
-        // If binary xls fail, attempt fallback text reading (many bank reports are tab-delimited text named .xls)
-        try {
-          final text = _decodeBytes(bytes);
-          rows = const CsvToListConverter(shouldParseNumbers: false, eol: '\n').convert(text);
-        } catch (_) {}
+        _fallbackTextReading(bytes, rows);
       }
     } else {
       // CSV / TSV / TXT
       final text = _decodeBytes(bytes);
-      String delimiter = ',';
-      final firstLine = text.split('\n').first;
-      if (firstLine.contains('\t')) {
-        delimiter = '\t';
-      } else if (firstLine.contains(';')) {
-        delimiter = ';';
-      }
-
-      rows = CsvToListConverter(
-        fieldDelimiter: delimiter,
-        shouldParseNumbers: false,
-        eol: '\n',
-      ).convert(text);
+      rows = _parseTextToCsv(text);
     }
 
     return rows;
+  }
+
+  static void _fallbackTextReading(Uint8List bytes, List<List<dynamic>> rows) {
+    try {
+      final text = _decodeBytes(bytes);
+      final lower = text.trimLeft().toLowerCase();
+      
+      if (lower.startsWith('<html') || lower.startsWith('<table') || lower.contains('<tr')) {
+        // It's an HTML file saved as .xls
+        final document = parse(text);
+        final tableRows = document.querySelectorAll('tr');
+        for (final tr in tableRows) {
+          final cells = tr.querySelectorAll('td, th');
+          if (cells.isNotEmpty) {
+            rows.add(cells.map((c) => c.text.trim()).toList());
+          }
+        }
+      } else if (lower.startsWith('<?xml') && (lower.contains('<worksheet') || lower.contains('<workbook'))) {
+        // XML Spreadsheet 2003 (rudimentary regex parser to extract cell data)
+        final rowMatches = RegExp(r'<Row.*?>(.*?)</Row>', dotAll: true, caseSensitive: false).allMatches(text);
+        for (final rowMatch in rowMatches) {
+          final rowXml = rowMatch.group(1) ?? '';
+          final cellMatches = RegExp(r'<Data.*?>(.*?)</Data>', dotAll: true, caseSensitive: false).allMatches(rowXml);
+          final rowData = cellMatches.map((m) => m.group(1)?.trim() ?? '').toList();
+          if (rowData.isNotEmpty) {
+            rows.add(rowData);
+          }
+        }
+      } else {
+        rows.addAll(_parseTextToCsv(text));
+      }
+    } catch (_) {}
   }
 }

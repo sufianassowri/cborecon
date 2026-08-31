@@ -5,6 +5,7 @@ import 'package:pluto_grid/pluto_grid.dart';
 import '../../../../core/constants/cbo_colors.dart';
 import '../../../../core/utils/csv_parser_util.dart';
 import '../../../../core/widgets/cbo_file_dropzone.dart';
+import '../../../../core/widgets/cbo_metric_card.dart';
 import '../../../../core/widgets/guided_recon_modal.dart';
 import '../../../../core/widgets/responsive_shell.dart';
 import '../providers/ips_triangular_recon_provider.dart';
@@ -108,7 +109,7 @@ class _IpsTriangularReconPageState extends ConsumerState<IpsTriangularReconPage>
         enableEditingMode: false,
         renderer: (rendererContext) {
           final val = rendererContext.cell.value.toString();
-          final bool isOk = val == 'MATCHED';
+          final bool isOk = val == 'OK';
 
           return Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -172,6 +173,9 @@ class _IpsTriangularReconPageState extends ConsumerState<IpsTriangularReconPage>
   @override
   Widget build(BuildContext context) {
     final reconState = ref.watch(ipsTriangularReconProvider);
+    final totalCount = reconState.summary.totalCount;
+    final matchedCount = reconState.summary.matchedCount;
+    final mismatchCount = reconState.summary.unmatchedCount;
 
     return ResponsiveShell(
       currentRoute: '/ips_triangular',
@@ -255,6 +259,43 @@ class _IpsTriangularReconPageState extends ConsumerState<IpsTriangularReconPage>
               ],
             ),
             const SizedBox(height: 16),
+
+            // Metrics Bar
+            if (totalCount > 0) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: CboMetricCard(
+                      title: 'Total CBS Records',
+                      value: '$totalCount',
+                      icon: Icons.hub_rounded,
+                      color: CboColors.slateDark,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CboMetricCard(
+                      title: '3-Way Matched Pairs',
+                      value: '$matchedCount',
+                      subtitle: totalCount > 0 ? '${((matchedCount / totalCount) * 100).toStringAsFixed(1)}% match rate' : null,
+                      icon: Icons.check_circle_rounded,
+                      color: CboColors.bankGreen,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: CboMetricCard(
+                      title: 'Triangular Exceptions',
+                      value: '$mismatchCount',
+                      subtitle: 'Requires investigation',
+                      icon: Icons.warning_amber_rounded,
+                      color: mismatchCount > 0 ? CboColors.alertRed : CboColors.slateMuted,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
 
             // PlutoGrid Table Area
             Expanded(
