@@ -16,6 +16,12 @@ class RemoteDisputeMemoState {
   final String preparedBy;
   final String checkedBy;
 
+  // Rate Input Fields
+  final double commissionRate;
+  final double disasterRate;
+  final double vatRate;
+  final double otherCommissionRate;
+
   RemoteDisputeMemoState({
     this.atmEnqPath,
     this.disputeReportPath,
@@ -27,6 +33,10 @@ class RemoteDisputeMemoState {
     this.disasterRiskAcc = 'ETB1759500010001',
     this.preparedBy = 'Sufian Aliyyii kedir',
     this.checkedBy = 'Shemsia Hamid Aman',
+    this.commissionRate = 0.006,
+    this.disasterRate = 0.05,
+    this.vatRate = 0.15,
+    this.otherCommissionRate = 0.0,
   });
 
   RemoteDisputeMemoState copyWith({
@@ -40,6 +50,10 @@ class RemoteDisputeMemoState {
     String? disasterRiskAcc,
     String? preparedBy,
     String? checkedBy,
+    double? commissionRate,
+    double? disasterRate,
+    double? vatRate,
+    double? otherCommissionRate,
   }) {
     return RemoteDisputeMemoState(
       atmEnqPath: atmEnqPath ?? this.atmEnqPath,
@@ -52,6 +66,10 @@ class RemoteDisputeMemoState {
       disasterRiskAcc: disasterRiskAcc ?? this.disasterRiskAcc,
       preparedBy: preparedBy ?? this.preparedBy,
       checkedBy: checkedBy ?? this.checkedBy,
+      commissionRate: commissionRate ?? this.commissionRate,
+      disasterRate: disasterRate ?? this.disasterRate,
+      vatRate: vatRate ?? this.vatRate,
+      otherCommissionRate: otherCommissionRate ?? this.otherCommissionRate,
     );
   }
 }
@@ -75,6 +93,10 @@ class RemoteDisputeMemoNotifier extends StateNotifier<RemoteDisputeMemoState> {
     String? disasterRiskAcc,
     String? preparedBy,
     String? checkedBy,
+    double? commissionRate,
+    double? disasterRate,
+    double? vatRate,
+    double? otherCommissionRate,
   }) {
     state = state.copyWith(
       disputedAtmAcc: disputedAtmAcc,
@@ -82,7 +104,15 @@ class RemoteDisputeMemoNotifier extends StateNotifier<RemoteDisputeMemoState> {
       disasterRiskAcc: disasterRiskAcc,
       preparedBy: preparedBy,
       checkedBy: checkedBy,
+      commissionRate: commissionRate,
+      disasterRate: disasterRate,
+      vatRate: vatRate,
+      otherCommissionRate: otherCommissionRate,
     );
+    // When rates change, we should re-process the summary if data is loaded
+    if (state.atmEnqPath != null && state.disputeReportPath != null && state.summary != null) {
+      _process();
+    }
   }
 
   Future<void> _process() async {
@@ -100,6 +130,10 @@ class RemoteDisputeMemoNotifier extends StateNotifier<RemoteDisputeMemoState> {
 
       final summary = RemoteDisputeMemoParser.generateMemoData(
         matchedData: matched,
+        commissionRate: state.commissionRate,
+        disasterRate: state.disasterRate,
+        vatRate: state.vatRate,
+        otherCommissionRate: state.otherCommissionRate,
       );
 
       state = state.copyWith(summary: summary, isLoading: false);

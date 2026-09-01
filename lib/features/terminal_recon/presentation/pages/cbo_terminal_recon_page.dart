@@ -172,12 +172,32 @@ class _CboTerminalReconPageState extends ConsumerState<CboTerminalReconPage> {
           IconButton(
             icon: const Icon(Icons.table_view_rounded, color: CboColors.bankGreen),
             tooltip: 'Export Excel (.xlsx)',
-            onPressed: () => ref.read(cboTerminalReconProvider.notifier).exportExcel(),
+            onPressed: () async {
+              final success = await ref.read(cboTerminalReconProvider.notifier).exportExcel();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success ? 'Excel Report Exported Successfully!' : 'Failed to Export Excel Report.'),
+                    backgroundColor: success ? CboColors.statusOkBg : CboColors.statusMismatchBg,
+                  ),
+                );
+              }
+            },
           ),
           IconButton(
             icon: const Icon(Icons.download_rounded, color: CboColors.slateDark),
             tooltip: 'Export CSV',
-            onPressed: () => ref.read(cboTerminalReconProvider.notifier).exportCsv(),
+            onPressed: () async {
+              final success = await ref.read(cboTerminalReconProvider.notifier).exportCsv();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(success ? 'CSV Report Exported Successfully!' : 'Failed to Export CSV Report.'),
+                    backgroundColor: success ? CboColors.statusOkBg : CboColors.statusMismatchBg,
+                  ),
+                );
+              }
+            },
           ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, color: CboColors.alertRed),

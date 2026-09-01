@@ -7,6 +7,7 @@ import '../../../../core/constants/cbo_colors.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_shell.dart';
 import '../../../../core/widgets/guided_recon_modal.dart';
+import '../../../../core/widgets/responsive_row.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/dispute_file_parser.dart';
 import '../controllers/dispute_provider.dart';
@@ -367,13 +368,12 @@ Deposit Dispute''';
           const SizedBox(height: 20),
 
           // Upload Option Selection (File Picker vs Direct Text Area)
-          Row(
+          ResponsiveRow(
             crossAxisAlignment: CrossAxisAlignment.start,
+            flexes: const [5, 7],
             children: [
               // Left Column: File Dropzone & Paste Box
-              Expanded(
-                flex: 5,
-                child: Column(
+              Column(
                   children: [
                     // File Pick Button Card
                     InkWell(
@@ -462,13 +462,9 @@ Deposit Dispute''';
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 20),
 
               // Right Column: Parsed Batch Summary & Sub-DC Items
-              Expanded(
-                flex: 7,
-                child: _parsedResult == null
+              _parsedResult == null
                     ? Container(
                         height: 380,
                         decoration: BoxDecoration(
@@ -492,7 +488,6 @@ Deposit Dispute''';
                         ),
                       )
                     : _buildParsedSummaryView(),
-              ),
             ],
           ),
 
@@ -601,73 +596,62 @@ Deposit Dispute''';
             const Divider(height: 24),
 
             // Financial Summary Metrics
-            Row(
+            ResponsiveRow(
               children: [
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE8F5E9),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.green.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Total Debit (DR)', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                        const SizedBox(height: 4),
-                        Text('ETB ${fmt.format(batch.totalDebitAmount)}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
-                      ],
-                    ),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5E9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.green.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Total Debit (DR)', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      const SizedBox(height: 4),
+                      Text('ETB ${fmt.format(batch.totalDebitAmount)}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE3F2FD),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.blue.shade200),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Total Credit (CR)', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                        const SizedBox(height: 4),
-                        Text('ETB ${fmt.format(batch.totalCreditAmount)}',
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: CboColors.primaryBlue)),
-                      ],
-                    ),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE3F2FD),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Total Credit (CR)', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      const SizedBox(height: 4),
+                      Text('ETB ${fmt.format(batch.totalCreditAmount)}',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: CboColors.primaryBlue)),
+                    ],
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: batch.isBalanced ? const Color(0xFFF1F8E9) : const Color(0xFFFFEBEE),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: batch.isBalanced ? Colors.green.shade200 : Colors.red.shade200,
-                      ),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: batch.isBalanced ? const Color(0xFFF1F8E9) : const Color(0xFFFFEBEE),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: batch.isBalanced ? Colors.green.shade200 : Colors.red.shade200,
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Balance Difference', style: TextStyle(fontSize: 11, color: Colors.grey)),
-                        const SizedBox(height: 4),
-                        Text(
-                          'ETB ${fmt.format((batch.totalDebitAmount - batch.totalCreditAmount).abs())}',
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Accounting Balance', style: TextStyle(fontSize: 11, color: Colors.grey)),
+                      const SizedBox(height: 4),
+                      Text(batch.isBalanced ? 'Balanced' : 'Out of Balance',
                           style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: batch.isBalanced ? Colors.green.shade800 : Colors.red.shade800,
-                          ),
-                        ),
-                      ],
-                    ),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: batch.isBalanced ? Colors.green.shade700 : Colors.red.shade700)),
+                    ],
                   ),
                 ),
               ],

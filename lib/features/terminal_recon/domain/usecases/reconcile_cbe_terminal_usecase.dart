@@ -33,55 +33,34 @@ class ReconcileCbeTerminalUseCase {
       throw const ReconciliationFailure(
           'RRN column missing in CBE reconciliation datasets.');
     }
-    final Map<String, List<dynamic>> cbsMap = {};
+    final Map<String, List<List<dynamic>>> cbsMap = {};
     for (final row in cbsData.skip(1)) {
       if (row.length > cbsRrnIdx) {
         final rrn = NormalizationUtil.normalize(row[cbsRrnIdx]);
-        if (rrn.isNotEmpty) cbsMap[rrn] = row;
+        if (rrn.isNotEmpty) {
+          cbsMap.putIfAbsent(rrn, () => []).add(row);
+        }
       }
     }
 
-    final Map<String, List<dynamic>> setMap = {};
+    final Map<String, List<List<dynamic>>> setMap = {};
     for (final row in settlementData.skip(1)) {
       if (row.length > setRrnIdx) {
         final rrn = NormalizationUtil.normalize(row[setRrnIdx]);
-        if (rrn.isNotEmpty) setMap[rrn] = row;
+        if (rrn.isNotEmpty) {
+          setMap.putIfAbsent(rrn, () => []).add(row);
+        }
       }
     }
     final Set<String> allRrns = {...cbsMap.keys, ...setMap.keys};
     final List<TerminalReconRow> resultRows = [];
 
-    for (final rrn in allRrns) {
-      if (rrn.isEmpty) continue;
-
-      final cbsRow = cbsMap[rrn];
-      final setRow = setMap[rrn];
-
-      TerminalReconStatus status;
-      if (cbsRow != null && setRow != null) {
-        // Compare Amount & PAN
-        bool isOk = true;
-        if (cbsAmtIdx != -1 &&
-            setAmtIdx != -1 &&
-            cbsRow.length > cbsAmtIdx &&
-            setRow.length > setAmtIdx) {
-          final cAmt = NormalizationUtil.normalize(cbsRow[cbsAmtIdx]);
-          final sAmt = NormalizationUtil.normalize(setRow[setAmtIdx]);
-          if (cAmt.isNotEmpty && sAmt.isNotEmpty && cAmt != sAmt) {
-            isOk = false;
-          }
-        }
-        if (cbsPanIdx != -1 && setPanIdx != -1) {
-          // User requested: Make comparison by PAN optional. If they match it is ok, if not no problem.
-          // We still mask and extract the PAN for display in the grid, but do not invalidate the match.
-        }
-        status =
-            isOk ? TerminalReconStatus.ok : TerminalReconStatus.amountMismatch;
-      } else if (cbsRow != null && setRow == null) {
-        status = TerminalReconStatus.missingInSettlement;
-      } else {
-        status = TerminalReconStatus.missingInCbs;
-      }
+    void addResultRow(
+      String rrn,
+      TerminalReconStatus status,
+      List<dynamic>? cbsRow,
+      List<dynamic>? setRow,
+    ) {
       final Map<String, dynamic> cbsMapData = {};
       if (cbsRow != null) {
         for (int i = 0; i < cbsHeaders.length; i++) {
@@ -101,6 +80,61 @@ class ReconcileCbeTerminalUseCase {
         settlementData: setMapData,
       ));
     }
+
+    for (final rrn in allRrns) {
+      if (rrn.isEmpty) continue;
+
+      final List<List<dynamic>> cbsRows = cbsMap[rrn] ?? [];
+      final List<List<dynamic>> setRows = setMap[rrn] ?? [];
+
+      final List<List<dynamic>> unmatchedCbsRows = [];
+      final List<List<dynamic>> unmatchedSetRows = List.from(setRows);
+
+      for (final cRow in cbsRows) {
+        bool matched = false;
+        if (cbsAmtIdx != -1 && setAmtIdx != -1 && cRow.length > cbsAmtIdx) {
+          final double cAmt = NormalizationUtil.parseAmount(cRow[cbsAmtIdx]);
+          
+          int matchIdx = -1;
+          for (int i = 0; i < unmatchedSetRows.length; i++) {
+            final sRow = unmatchedSetRows[i];
+            if (sRow.length > setAmtIdx) {
+              final double sAmt = NormalizationUtil.parseAmount(sRow[setAmtIdx]);
+              if (NormalizationUtil.amountsEqual(cAmt, sAmt)) {
+                matchIdx = i;
+                break;
+              }
+            }
+          }
+          if (matchIdx != -1) {
+            final sRow = unmatchedSetRows.removeAt(matchIdx);
+            addResultRow(rrn, TerminalReconStatus.ok, cRow, sRow);
+            matched = true;
+          }
+        }
+        
+        // If amount parsing fails or no match found by amount, we keep it as unmatched
+        if (!matched) {
+          unmatchedCbsRows.add(cRow);
+        }
+      }
+
+      int i = 0;
+      while (i < unmatchedCbsRows.length && i < unmatchedSetRows.length) {
+        addResultRow(rrn, TerminalReconStatus.amountMismatch, unmatchedCbsRows[i], unmatchedSetRows[i]);
+        i++;
+      }
+
+      while (i < unmatchedCbsRows.length) {
+        addResultRow(rrn, TerminalReconStatus.missingInSettlement, unmatchedCbsRows[i], null);
+        i++;
+      }
+
+      for (int j = i; j < unmatchedSetRows.length; j++) {
+        addResultRow(rrn, TerminalReconStatus.missingInCbs, null, unmatchedSetRows[j]);
+      }
+    }
+
     // Sort: Exceptions at top
     resultRows.sort((a, b) {
       final bool aMissing = a.status != TerminalReconStatus.ok;

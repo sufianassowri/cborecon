@@ -930,6 +930,29 @@ class _RemoteDisputeIdentificationTabState
                   ),
                 ),
                 const SizedBox(width: 12),
+                if (_hasExecuted || _cbsFileName != null || _settlementFileName != null) ...[
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      setState(() {
+                        _cbsRaw.clear();
+                        _settlementRaw.clear();
+                        _cbsFileName = null;
+                        _settlementFileName = null;
+                        _result = null;
+                        _hasExecuted = false;
+                        _stateManager = null;
+                      });
+                    },
+                    icon: const Icon(Icons.refresh_rounded, color: CboColors.alertRed),
+                    label: const Text('Reset', style: TextStyle(color: CboColors.alertRed)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: CboColors.alertRed),
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                ],
                 if (_hasExecuted)
                   OutlinedButton.icon(
                     onPressed: _exportResults,

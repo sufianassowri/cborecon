@@ -35,6 +35,11 @@ class DisputeMemoItem {
   final String requestedDate;
   final String assignedDate;
 
+  final double commissionRate;
+  final double disasterRate;
+  final double vatRate;
+  final double otherCommissionRate;
+
   DisputeMemoItem({
     this.id,
     required this.transRef,
@@ -61,25 +66,28 @@ class DisputeMemoItem {
     this.investigationStatus = '',
     this.requestedDate = '',
     this.assignedDate = '',
+    this.commissionRate = 0.005,
+    this.disasterRate = 0.05,
+    this.vatRate = 0.15,
+    this.otherCommissionRate = 0.0,
   });
 
   // Business Logic Calculations
 
-  /// Calculates PL Commission (COM):
-  /// - Always 0.5% (0.005) for On Us
-  double get pl62174 {
-    double rate = 0.005;
-    return _roundUp(amount * rate, 2);
-  }
+  /// Calculates PL Commission (COM)
+  double get pl62174 => _roundUp(amount * commissionRate, 2);
 
-  /// Calculates Disaster / EDRRF (DIS): =ROUNDUP(0.05 * COM, 2)
-  double get edrrfAmount => _roundUp(pl62174 * 0.05, 2);
+  /// Calculates Disaster / EDRRF (DIS)
+  double get edrrfAmount => _roundUp(pl62174 * disasterRate, 2);
 
-  /// Calculates VAT: =ROUNDUP(0.15 * COM, 2)
-  double get vatAmount => _roundUp(pl62174 * 0.15, 2);
+  /// Calculates VAT
+  double get vatAmount => _roundUp(pl62174 * vatRate, 2);
+
+  /// Calculates Other Commission
+  double get otherCommissionAmount => _roundUp(pl62174 * otherCommissionRate, 2);
 
   /// Calculates Total:
-  double get total => _roundUp(amount + edrrfAmount + vatAmount + pl62174, 2);
+  double get total => _roundUp(amount + edrrfAmount + vatAmount + pl62174 + otherCommissionAmount, 2);
 
   /// Implements Excel formula: =REPLACE(B2, 1, 4, "ETB17212000")
   String get vatAccount {

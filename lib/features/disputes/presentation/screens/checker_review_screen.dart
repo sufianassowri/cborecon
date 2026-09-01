@@ -5,6 +5,7 @@ import 'package:pluto_grid/pluto_grid.dart';
 import '../../../../core/constants/cbo_colors.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_shell.dart';
+import '../../../../core/widgets/responsive_row.dart';
 import '../../../../core/widgets/guided_recon_modal.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/model/dispute_batch_model.dart';
@@ -639,35 +640,28 @@ class _CheckerPanelScreenState extends ConsumerState<CheckerPanelScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               child: Column(
                 children: [
-                  Row(
+                  ResponsiveRow(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    flexes: const [4, 3, 3],
                     children: [
                       // Field 1: Account
-                      Expanded(
-                        flex: 4,
-                        child: _buildCbsFormField(
-                          label: 'Account',
-                          controller: _accountController,
-                          suffixIcon: Icons.search,
-                        ),
+                      _buildCbsFormField(
+                        label: 'Account',
+                        controller: _accountController,
+                        suffixIcon: Icons.search,
                       ),
                       const SizedBox(width: 14),
                       // Field 2: Value Date
-                      Expanded(
-                        flex: 3,
-                        child: _buildCbsFormField(
-                          label: 'Value Date',
-                          controller: _valueDateController,
-                          suffixIcon: Icons.calendar_today,
-                        ),
+                      _buildCbsFormField(
+                        label: 'Value Date',
+                        controller: _valueDateController,
+                        suffixIcon: Icons.calendar_today,
                       ),
                       const SizedBox(width: 14),
                       // Field 3: Debit / Credit
-                      Expanded(
-                        flex: 3,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                             const Text('Debit / Credit *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black87)),
                             const SizedBox(height: 4),
                             Row(
@@ -691,61 +685,49 @@ class _CheckerPanelScreenState extends ConsumerState<CheckerPanelScreen> {
                             ),
                           ],
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 10),
 
-                  Row(
+                  ResponsiveRow(
+                    flexes: const [4, 3, 3],
                     children: [
                       // Field 4: Lcy Amount
-                      Expanded(
-                        flex: 4,
-                        child: _buildCbsFormField(
-                          label: 'Lcy Amount',
-                          controller: _amountController,
-                        ),
+                      _buildCbsFormField(
+                        label: 'Lcy Amount',
+                        controller: _amountController,
                       ),
                       const SizedBox(width: 14),
                       // Field 5: Transaction Cde
-                      Expanded(
-                        flex: 3,
-                        child: _buildCbsFormField(
-                          label: 'Transaction Cde *',
-                          controller: _txnCodeController,
-                          helperText: _selectedDebitCredit == 'D' ? 'Miscellaneous Debits' : 'Miscellaneous Credits',
-                        ),
+                      _buildCbsFormField(
+                        label: 'Transaction Cde *',
+                        controller: _txnCodeController,
+                        helperText: _selectedDebitCredit == 'D' ? 'Miscellaneous Debits' : 'Miscellaneous Credits',
                       ),
                       const SizedBox(width: 14),
                       // Field 6: Currency & Position Type
-                      Expanded(
-                        flex: 3,
-                        child: _buildCbsFormField(
-                          label: 'Currency / Pos',
-                          controller: TextEditingController(text: 'ETB / TR'),
-                          readOnly: true,
-                        ),
+                      _buildCbsFormField(
+                        label: 'Currency / Pos',
+                        controller: TextEditingController(text: 'ETB / TR'),
+                        readOnly: true,
                       ),
                     ],
                   ),
                   const SizedBox(height: 10),
 
-                  Row(
+                  ResponsiveRow(
+                    flexes: const [1, 1],
                     children: [
                       // Field 7: Narrative 1
-                      Expanded(
-                        child: _buildCbsFormField(
-                          label: 'Narrative.1',
-                          controller: _narrative1Controller,
-                        ),
+                      _buildCbsFormField(
+                        label: 'Narrative.1',
+                        controller: _narrative1Controller,
                       ),
                       const SizedBox(width: 14),
                       // Field 8: Narrative 2
-                      Expanded(
-                        child: _buildCbsFormField(
-                          label: 'Narrative.2',
-                          controller: _narrative2Controller,
-                        ),
+                      _buildCbsFormField(
+                        label: 'Narrative.2',
+                        controller: _narrative2Controller,
                       ),
                     ],
                   ),

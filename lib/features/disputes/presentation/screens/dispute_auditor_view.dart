@@ -6,6 +6,7 @@ import '../../../../core/constants/cbo_colors.dart';
 import '../../../../core/utils/file_saver_util.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_shell.dart';
+import '../../../../core/widgets/responsive_row.dart';
 import '../../../../core/widgets/guided_recon_modal.dart';
 import '../../data/model/dispute_batch_model.dart';
 import '../controllers/dispute_provider.dart';
@@ -102,7 +103,7 @@ class _AuditorDashboardContentState extends ConsumerState<AuditorDashboardConten
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Row 1: KPI Analytics Cards
-          Row(
+          ResponsiveRow(
             children: [
               _buildKpiCard(
                 title: 'Total Tickets',
@@ -111,7 +112,6 @@ class _AuditorDashboardContentState extends ConsumerState<AuditorDashboardConten
                 icon: Icons.confirmation_number_outlined,
                 color: CboColors.primaryBlue,
               ),
-              const SizedBox(width: 12),
               _buildKpiCard(
                 title: 'Pending Tickets',
                 value: '${analytics.pendingBatches}',
@@ -119,7 +119,6 @@ class _AuditorDashboardContentState extends ConsumerState<AuditorDashboardConten
                 icon: Icons.pending_actions_rounded,
                 color: Colors.orange,
               ),
-              const SizedBox(width: 12),
               _buildKpiCard(
                 title: 'Assigned (In-Review)',
                 value: '${analytics.assignedBatches}',
@@ -127,7 +126,6 @@ class _AuditorDashboardContentState extends ConsumerState<AuditorDashboardConten
                 icon: Icons.assignment_ind_rounded,
                 color: CboColors.primaryCyan,
               ),
-              const SizedBox(width: 12),
               _buildKpiCard(
                 title: 'Authorized',
                 value: '${analytics.authorizedBatches}',
@@ -135,7 +133,6 @@ class _AuditorDashboardContentState extends ConsumerState<AuditorDashboardConten
                 icon: Icons.check_circle_rounded,
                 color: Colors.green,
               ),
-              const SizedBox(width: 12),
               _buildKpiCard(
                 title: 'Returned for Correction',
                 value: '${analytics.rejectedBatches}',
@@ -151,7 +148,10 @@ class _AuditorDashboardContentState extends ConsumerState<AuditorDashboardConten
           GlassCard(
             child: Padding(
               padding: const EdgeInsets.all(18),
-              child: Row(
+              child: Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -161,8 +161,8 @@ class _AuditorDashboardContentState extends ConsumerState<AuditorDashboardConten
                     ),
                     child: const Icon(Icons.timer_outlined, color: CboColors.primaryBlue, size: 28),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
+                  SizedBox(
+                    width: 300,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: const [
@@ -178,19 +178,16 @@ class _AuditorDashboardContentState extends ConsumerState<AuditorDashboardConten
                       ],
                     ),
                   ),
-                  const SizedBox(width: 20),
                   _buildSlaDurationBadge(
                     label: 'Avg Made → Assigned',
                     duration: analytics.averageMadeToAssigned,
                     color: Colors.orange.shade800,
                   ),
-                  const SizedBox(width: 12),
                   _buildSlaDurationBadge(
                     label: 'Avg Assigned → Authorized',
                     duration: analytics.averageAssignedToAuthorized,
                     color: CboColors.primaryCyan,
                   ),
-                  const SizedBox(width: 12),
                   _buildSlaDurationBadge(
                     label: 'Avg Total Turnaround SLA',
                     duration: analytics.averageTotalTurnaround,
@@ -418,34 +415,32 @@ class _AuditorDashboardContentState extends ConsumerState<AuditorDashboardConten
     required IconData icon,
     required Color color,
   }) {
-    return Expanded(
-      child: GlassCard(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: color, size: 24),
+    return GlassCard(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                    const SizedBox(height: 2),
-                    Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-                    Text(subtitle, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  ],
-                ),
+              child: Icon(icon, color: color, size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 2),
+                  Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+                  Text(subtitle, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

@@ -3,22 +3,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../../../../core/widgets/responsive_shell.dart';
+import '../../../../../core/widgets/responsive_row.dart';
 import '../../data/persers/excel_exporter.dart';
 import '../../domain/models/dispute_memo_item.dart';
 import '../../domain/models/memo_format_type.dart';
 import '../providers/dispute_memo_provider.dart';
+
 class DisputeMemoPage extends ConsumerStatefulWidget {
   const DisputeMemoPage({Key? key}) : super(key: key);
   @override
   ConsumerState<DisputeMemoPage> createState() => _DisputeMemoPageState();
 }
+
 class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
   late TextEditingController _preparedByController;
   late TextEditingController _checkedByController;
   late TextEditingController _atmAccController;
   late TextEditingController _commAccController;
   late TextEditingController _disasterAccController;
-
   @override
   void initState() {
     super.initState();
@@ -33,7 +35,6 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
   /// Complete reset helper to clear provider state and UI text fields
   void _resetState() {
     ref.invalidate(disputeMemoProvider);
-
     _preparedByController.clear();
     _checkedByController.clear();
     _atmAccController.clear();
@@ -185,26 +186,7 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
                             : 'Dispute Loaded',
                       ),
                     ),
-                    DropdownButton<MemoFormatType>(
-                      value: state.memoFormat,
-                      items: const [
-                        DropdownMenuItem(
-                          value: MemoFormatType.fahmi,
-                          child: Text('Fahmi Format'),
-                        ),
-                        DropdownMenuItem(
-                          value: MemoFormatType.geda,
-                          child: Text('Geda Format'),
-                        ),
-                      ],
-                      onChanged: (v) {
-                        if (v != null) {
-                          ref
-                              .read(disputeMemoProvider.notifier)
-                              .setMemoFormat(v);
-                        }
-                      },
-                    ),
+                    // Removed MemoFormatType dropdown
                     OutlinedButton.icon(
                       onPressed: _resetState,
                       icon: const Icon(Icons.restart_alt),
@@ -230,46 +212,46 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
               child: state.isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : state.summary == null
-                  ? const Center(
-                child: Text(
-                  'Select ATM ENQ and Dispute reports to Prepare memo.',
-                ),
-              )
-                  : PlutoGrid(
-                rowColorCallback:
-                    (PlutoRowColorContext rowColorContext) {
-                  final isTotalRow =
-                      rowColorContext.row.cells['name']?.value ==
-                          'TOTAL' ||
-                          rowColorContext.row.cells['ref']?.value ==
-                              'TOTAL';
-                  if (isTotalRow) {
-                    return Colors.grey.shade300;
-                  }
-                  return Colors.white;
-                },
-                configuration: PlutoGridConfiguration(
-                  columnSize: const PlutoGridColumnSizeConfig(
-                    autoSizeMode: PlutoAutoSizeMode.scale,
-                    resizeMode: PlutoResizeMode.pushAndPull,
-                  ),
-                  style: PlutoGridStyleConfig(
-                    evenRowColor: Colors.green,
-                    gridBackgroundColor: Colors.black,
-                    columnTextStyle: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    cellTextStyle: const TextStyle(
-                      fontSize: 10,
-                      color: Colors.black,
-                    ),
-                  ),
-                ),
-                key: ValueKey('${state.memoFormat}_onUs'),
-                columns: _buildColumns(state.memoFormat),
-                rows: _buildRows(state.summary!, state.memoFormat),
-              ),
+                      ? const Center(
+                          child: Text(
+                            'Select ATM ENQ and Dispute reports to Prepare memo.',
+                          ),
+                        )
+                      : PlutoGrid(
+                          rowColorCallback:
+                              (PlutoRowColorContext rowColorContext) {
+                            final isTotalRow =
+                                rowColorContext.row.cells['name']?.value ==
+                                        'TOTAL' ||
+                                    rowColorContext.row.cells['ref']?.value ==
+                                        'TOTAL';
+                            if (isTotalRow) {
+                              return Colors.grey.shade300;
+                            }
+                            return Colors.white;
+                          },
+                          configuration: PlutoGridConfiguration(
+                            columnSize: const PlutoGridColumnSizeConfig(
+                              autoSizeMode: PlutoAutoSizeMode.scale,
+                              resizeMode: PlutoResizeMode.pushAndPull,
+                            ),
+                            style: PlutoGridStyleConfig(
+                              evenRowColor: Colors.green,
+                              gridBackgroundColor: Colors.black,
+                              columnTextStyle: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              cellTextStyle: const TextStyle(
+                                fontSize: 10,
+                                color: Colors.black,
+                              ),
+                            ),
+                          ),
+                          key: const ValueKey('onUs'),
+                          columns: _buildColumns(),
+                          rows: _buildRows(state.summary!),
+                        ),
             ),
             const SizedBox(height: 12),
             if (state.summary != null)
@@ -285,321 +267,221 @@ class _DisputeMemoPageState extends ConsumerState<DisputeMemoPage> {
     );
   }
 
-
   /// Simple Prepared By / Checked By Footer for On-Us
   Widget _buildOnUsFooter(DisputeMemoState state) {
-    return Row(
+    return ResponsiveRow(
       children: [
-        Expanded(
-          child: TextField(
-            controller: _preparedByController,
-            onChanged: (val) {
-              ref.read(disputeMemoProvider.notifier).updateAccounts(
-                preparedBy: val,
-              );
-            },
-            decoration: const InputDecoration(
-              labelText: 'Prepared By',
-              border: OutlineInputBorder(),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _preparedByController,
+                onChanged: (val) => ref.read(disputeMemoProvider.notifier).updateAccounts(preparedBy: val),
+                decoration: const InputDecoration(labelText: 'Prepared By', border: OutlineInputBorder()),
+              ),
             ),
-          ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: TextField(
+                controller: _checkedByController,
+                onChanged: (val) => ref.read(disputeMemoProvider.notifier).updateAccounts(checkedBy: val),
+                decoration: const InputDecoration(labelText: 'Checked By', border: OutlineInputBorder()),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: TextField(
-            controller: _checkedByController,
-            onChanged: (val) {
-              ref.read(disputeMemoProvider.notifier).updateAccounts(
-                checkedBy: val,
-              );
-            },
-            decoration: const InputDecoration(
-              labelText: 'Checked By',
-              border: OutlineInputBorder(),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: TextFormField(
+                initialValue: (state.commissionRate * 100).toString(),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Commission Rate (%)', border: OutlineInputBorder()),
+                onChanged: (val) {
+                  final rate = double.tryParse(val);
+                  if (rate != null) {
+                    ref.read(disputeMemoProvider.notifier).updateAccounts(commissionRate: rate / 100);
+                  }
+                },
+              ),
             ),
-          ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextFormField(
+                initialValue: (state.disasterRate * 100).toString(),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Disaster Rate (%)', border: OutlineInputBorder()),
+                onChanged: (val) {
+                  final rate = double.tryParse(val);
+                  if (rate != null) {
+                    ref.read(disputeMemoProvider.notifier).updateAccounts(disasterRate: rate / 100);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextFormField(
+                initialValue: (state.vatRate * 100).toString(),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'VAT Rate (%)', border: OutlineInputBorder()),
+                onChanged: (val) {
+                  final rate = double.tryParse(val);
+                  if (rate != null) {
+                    ref.read(disputeMemoProvider.notifier).updateAccounts(vatRate: rate / 100);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextFormField(
+                initialValue: (state.otherCommissionRate * 100).toString(),
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(labelText: 'Other Comm Rate (%)', border: OutlineInputBorder()),
+                onChanged: (val) {
+                  final rate = double.tryParse(val);
+                  if (rate != null) {
+                    ref.read(disputeMemoProvider.notifier).updateAccounts(otherCommissionRate: rate / 100);
+                  }
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  List<PlutoColumn> _buildColumns(MemoFormatType format) {
-    if (format == MemoFormatType.fahmi) {
-      return [
-        PlutoColumn(
-          title: 'CustomerName',
-          field: 'name',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'PAN',
-          field: 'pan',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'Transaction Date',
-          field: 'date',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'branch',
-          field: 'branch',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'TRANSREFERANCE',
-          field: 'ref',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'DEBIT ATM Acc',
-          field: 'atm_acc',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'DEBIT VAT ACC',
-          field: 'vat_acc',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'DEBIT E.D.F Acc',
-          field: 'edf_acc',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'Customer_Account',
-          field: 'account',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'amount',
-          field: 'amount',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: '62174',
-          field: 'pl',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'VAT_Amount',
-          field: 'vat',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'E.D.Amount',
-          field: 'edrf',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'total',
-          field: 'total',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'RRN',
-          field: 'rrn',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-      ];
-    } else {
-      return [
-        PlutoColumn(
-          title: 'TRANSREFERANCE',
-          field: 'ref',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'Branch',
-          field: 'branch',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'CustomerAccount',
-          field: 'account',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'amount',
-          field: 'amount',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'CustomerName',
-          field: 'name',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'PAN',
-          field: 'pan',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'Transaction Date',
-          field: 'date',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'EDRRF Acount',
-          field: 'edf_acc',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'EDRRF amount',
-          field: 'edrf',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'DR ACOUNT',
-          field: 'atm_acc',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'vat acount',
-          field: 'vat_acc',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-        PlutoColumn(
-          title: 'vat amount',
-          field: 'vat',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'pl(62174)',
-          field: 'pl',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'total',
-          field: 'total',
-          type: PlutoColumnType.number(),
-          renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
-        ),
-        PlutoColumn(
-          title: 'RETRIEVAL.REF.NO',
-          field: 'rrn',
-          type: PlutoColumnType.text(),
-          renderer: (ctx) => _cellRenderer(ctx),
-        ),
-      ];
-    }
+  List<PlutoColumn> _buildColumns() {
+    return [
+      PlutoColumn(
+        title: 'TRANS_REFERANCE',
+        field: 'ref',
+        type: PlutoColumnType.text(),
+        renderer: (ctx) => _cellRenderer(ctx),
+      ),
+      PlutoColumn(
+        title: 'PAN',
+        field: 'pan',
+        type: PlutoColumnType.text(),
+        renderer: (ctx) => _cellRenderer(ctx),
+      ),
+      PlutoColumn(
+        title: 'Transaction Date',
+        field: 'date',
+        type: PlutoColumnType.text(),
+        renderer: (ctx) => _cellRenderer(ctx),
+      ),
+      PlutoColumn(
+        title: 'CustomerAccount',
+        field: 'account',
+        type: PlutoColumnType.text(),
+        renderer: (ctx) => _cellRenderer(ctx),
+      ),
+      PlutoColumn(
+        title: 'Customer Name',
+        field: 'name',
+        type: PlutoColumnType.text(),
+        renderer: (ctx) => _cellRenderer(ctx),
+      ),
+      PlutoColumn(
+        title: 'Acquirer Bank',
+        field: 'acquirer',
+        type: PlutoColumnType.text(),
+        renderer: (ctx) => _cellRenderer(ctx),
+      ),
+      PlutoColumn(
+        title: 'Branch',
+        field: 'branch',
+        type: PlutoColumnType.text(),
+        renderer: (ctx) => _cellRenderer(ctx),
+      ),
+      PlutoColumn(
+        title: 'VAT Account',
+        field: 'vat_acc',
+        type: PlutoColumnType.text(),
+        renderer: (ctx) => _cellRenderer(ctx),
+      ),
+      PlutoColumn(
+        title: 'Amount',
+        field: 'amount',
+        type: PlutoColumnType.number(),
+        renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
+      ),
+      PlutoColumn(
+        title: 'Com_amount',
+        field: 'pl',
+        type: PlutoColumnType.number(),
+        renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
+      ),
+      PlutoColumn(
+        title: 'Disaster commission',
+        field: 'edrf',
+        type: PlutoColumnType.number(),
+        renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
+      ),
+      PlutoColumn(
+        title: 'VAT amount',
+        field: 'vat',
+        type: PlutoColumnType.number(),
+        renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
+      ),
+      PlutoColumn(
+        title: 'TOTAL',
+        field: 'total',
+        type: PlutoColumnType.number(),
+        renderer: (ctx) => _cellRenderer(ctx, isNumber: true),
+      ),
+      PlutoColumn(
+        title: 'RRN',
+        field: 'rrn',
+        type: PlutoColumnType.text(),
+        renderer: (ctx) => _cellRenderer(ctx),
+      ),
+    ];
   }
 
-  List<PlutoRow> _buildRows(
-      DisputeMemoSummary summary,
-      MemoFormatType format,
-      ) {
+  List<PlutoRow> _buildRows(DisputeMemoSummary summary) {
     List<PlutoRow> rows = [];
 
     for (var item in summary.items) {
-      Map<String, PlutoCell> cells = {};
-      if (format == MemoFormatType.fahmi) {
-        cells = {
-          'name': PlutoCell(value: item.customerName),
-          'pan': PlutoCell(value: item.pan),
-          'date': PlutoCell(value: item.transactionDate),
-          'branch': PlutoCell(value: item.branch),
-          'ref': PlutoCell(value: item.transRef),
-          'atm_acc': PlutoCell(value: item.debitAtmAcc),
-          'vat_acc': PlutoCell(value: item.debitVatAcc),
-          'edf_acc': PlutoCell(value: item.debitEdfAcc),
-          'account': PlutoCell(value: item.customerAccount),
-          'amount': PlutoCell(value: item.amount),
-          'pl': PlutoCell(value: item.pl62174),
-          'vat': PlutoCell(value: item.vatAmount),
-          'edrf': PlutoCell(value: item.edrrfAmount),
-          'total': PlutoCell(value: item.total),
-          'rrn': PlutoCell(value: item.rrn),
-        };
-      } else {
-        cells = {
-          'ref': PlutoCell(value: item.transRef),
-          'branch': PlutoCell(value: item.branch),
-          'account': PlutoCell(value: item.customerAccount),
-          'amount': PlutoCell(value: item.amount),
-          'name': PlutoCell(value: item.customerName),
-          'pan': PlutoCell(value: item.pan),
-          'date': PlutoCell(value: item.transactionDate),
-          'edf_acc': PlutoCell(value: item.debitEdfAcc),
-          'edrf': PlutoCell(value: item.edrrfAmount),
-          'atm_acc': PlutoCell(value: item.debitAtmAcc),
-          'vat_acc': PlutoCell(value: item.debitVatAcc),
-          'vat': PlutoCell(value: item.vatAmount),
-          'pl': PlutoCell(value: item.pl62174),
-          'total': PlutoCell(value: item.total),
-          'rrn': PlutoCell(value: item.rrn),
-        };
-      }
+      final cells = {
+        'ref': PlutoCell(value: item.transRef),
+        'pan': PlutoCell(value: item.pan),
+        'date': PlutoCell(value: item.transactionDate),
+        'account': PlutoCell(value: item.customerAccount),
+        'name': PlutoCell(value: item.customerName),
+        'acquirer': PlutoCell(value: item.acquirerBank),
+        'branch': PlutoCell(value: item.branch),
+        'vat_acc': PlutoCell(value: item.debitVatAcc),
+        'amount': PlutoCell(value: item.amount),
+        'pl': PlutoCell(value: item.pl62174),
+        'edrf': PlutoCell(value: item.edrrfAmount),
+        'vat': PlutoCell(value: item.vatAmount),
+        'total': PlutoCell(value: item.total),
+        'rrn': PlutoCell(value: item.rrn),
+      };
       rows.add(PlutoRow(cells: cells));
     }
 
-    // Add TOTAL summary row
-    Map<String, PlutoCell> totalCells = {};
-    if (format == MemoFormatType.fahmi) {
-      totalCells = {
-        'name': PlutoCell(value: 'TOTAL'),
-        'pan': PlutoCell(value: ''),
-        'date': PlutoCell(value: ''),
-        'branch': PlutoCell(value: ''),
-        'ref': PlutoCell(value: ''),
-        'atm_acc': PlutoCell(value: ''),
-        'vat_acc': PlutoCell(value: ''),
-        'edf_acc': PlutoCell(value: ''),
-        'account': PlutoCell(value: ''),
-        'amount': PlutoCell(value: summary.totalAmount),
-        'pl': PlutoCell(value: summary.totalPl62174),
-        'vat': PlutoCell(value: summary.totalVatAmount),
-        'edrf': PlutoCell(value: summary.totalEdrfAmount),
-        'total': PlutoCell(value: summary.grandTotal),
-        'rrn': PlutoCell(value: ''),
-      };
-    } else {
-      totalCells = {
-        'ref': PlutoCell(value: 'TOTAL'),
-        'branch': PlutoCell(value: ''),
-        'account': PlutoCell(value: ''),
-        'amount': PlutoCell(value: summary.totalAmount),
-        'name': PlutoCell(value: ''),
-        'pan': PlutoCell(value: ''),
-        'date': PlutoCell(value: ''),
-        'edf_acc': PlutoCell(value: ''),
-        'edrf': PlutoCell(value: summary.totalEdrfAmount),
-        'atm_acc': PlutoCell(value: ''),
-        'vat_acc': PlutoCell(value: ''),
-        'vat': PlutoCell(value: summary.totalVatAmount),
-        'pl': PlutoCell(value: summary.totalPl62174),
-        'total': PlutoCell(value: summary.grandTotal),
-        'rrn': PlutoCell(value: ''),
-      };
-    }
+    final totalCells = {
+      'ref': PlutoCell(value: 'TOTAL'),
+      'pan': PlutoCell(value: ''),
+      'date': PlutoCell(value: ''),
+      'account': PlutoCell(value: ''),
+      'name': PlutoCell(value: ''),
+      'acquirer': PlutoCell(value: ''),
+      'branch': PlutoCell(value: ''),
+      'vat_acc': PlutoCell(value: ''),
+      'amount': PlutoCell(value: summary.totalAmount),
+      'pl': PlutoCell(value: summary.totalPl62174),
+      'edrf': PlutoCell(value: summary.totalEdrfAmount),
+      'vat': PlutoCell(value: summary.totalVatAmount),
+      'total': PlutoCell(value: summary.grandTotal),
+      'rrn': PlutoCell(value: ''),
+    };
     rows.add(PlutoRow(cells: totalCells));
 
     return rows;

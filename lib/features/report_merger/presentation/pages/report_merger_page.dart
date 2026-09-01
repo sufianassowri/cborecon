@@ -5,6 +5,7 @@ import 'package:pluto_grid/pluto_grid.dart';
 import '../../../../core/constants/cbo_colors.dart';
 import '../../../../core/widgets/glass_card.dart';
 import '../../../../core/widgets/responsive_shell.dart';
+import '../../../../core/widgets/responsive_row.dart';
 import '../../../../core/widgets/guided_recon_modal.dart';
 import '../../domain/entities/settlement_row_entity.dart';
 import '../../domain/services/settlement_merger_engine.dart';
@@ -116,7 +117,7 @@ class _ReportMergerPageState extends ConsumerState<ReportMergerPage> {
             GlassCard(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                child: Row(
+                child: ResponsiveRow(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(10),
@@ -126,11 +127,9 @@ class _ReportMergerPageState extends ConsumerState<ReportMergerPage> {
                       ),
                       child: const Icon(Icons.hub_rounded, color: CboColors.primaryBlue, size: 24),
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                           const Text(
                             'Settlement Feed / Gateway Profile:',
                             style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
@@ -154,7 +153,6 @@ class _ReportMergerPageState extends ConsumerState<ReportMergerPage> {
                           ),
                         ],
                       ),
-                    ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(

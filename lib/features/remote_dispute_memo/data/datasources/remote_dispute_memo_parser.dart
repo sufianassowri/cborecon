@@ -69,6 +69,10 @@ class RemoteDisputeMemoParser {
 
   static RemoteDisputeMemoSummary generateMemoData({
     required List<Map<String, dynamic>> matchedData,
+    double commissionRate = 0.006,
+    double disasterRate = 0.05,
+    double vatRate = 0.15,
+    double otherCommissionRate = 0.0,
   }) {
     List<RemoteDisputeMemoItem> items = [];
 
@@ -101,6 +105,10 @@ class RemoteDisputeMemoParser {
         investigationStatus: row['Investigation Status']?.toString() ?? '',
         requestedDate: row['Requested Date']?.toString() ?? '',
         assignedDate: row['Assigned Date']?.toString() ?? '',
+        commissionRate: commissionRate,
+        disasterRate: disasterRate,
+        vatRate: vatRate,
+        otherCommissionRate: otherCommissionRate,
       );
 
       items.add(item);

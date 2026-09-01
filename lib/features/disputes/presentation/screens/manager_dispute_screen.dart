@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/constants/cbo_colors.dart';
+import '../../../../core/widgets/cbo_status_badge.dart';
 import '../../../../core/widgets/glass_card.dart';
-import '../../../../core/widgets/responsive_shell.dart';
 import '../../../../core/widgets/guided_recon_modal.dart';
+import '../../../../core/widgets/responsive_shell.dart';
+import '../../../../core/widgets/responsive_row.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/model/dispute_batch_model.dart';
 import '../controllers/dispute_provider.dart';
 import 'dispute_auditor_view.dart';
@@ -231,7 +234,7 @@ class _ManagerDisputeScreenState extends ConsumerState<ManagerDisputeScreen>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // KPI Metric Header Cards
-          Row(
+          ResponsiveRow(
             children: [
               _buildMetricCard(
                 title: 'Total Batches',
@@ -239,38 +242,49 @@ class _ManagerDisputeScreenState extends ConsumerState<ManagerDisputeScreen>
                 subtitle: 'Active dispute files',
                 icon: Icons.folder_copy_rounded,
                 color: CboColors.primaryBlue,
+                onTap: () {
+                  setState(() => _statusFilter = 'ALL');
+                },
               ),
-              const SizedBox(width: 14),
               _buildMetricCard(
                 title: 'Pending Assignment',
                 value: '${analytics.pendingBatches}',
                 subtitle: 'Requires Checker routing',
                 icon: Icons.hourglass_top_rounded,
                 color: Colors.orange,
+                onTap: () {
+                  setState(() => _statusFilter = 'NEW');
+                },
               ),
-              const SizedBox(width: 14),
               _buildMetricCard(
                 title: 'In Review (Assigned)',
                 value: '${analytics.assignedBatches}',
                 subtitle: 'With Checker officers',
                 icon: Icons.fact_check_rounded,
                 color: CboColors.primaryCyan,
+                onTap: () {
+                  setState(() => _statusFilter = 'ASSIGNED');
+                },
               ),
-              const SizedBox(width: 14),
               _buildMetricCard(
                 title: 'Authorized',
                 value: '${analytics.authorizedBatches}',
                 subtitle: 'Completed & approved',
                 icon: Icons.check_circle_rounded,
                 color: Colors.green,
+                onTap: () {
+                  setState(() => _statusFilter = 'AUTHORIZED');
+                },
               ),
-              const SizedBox(width: 14),
               _buildMetricCard(
                 title: 'Correction Required',
                 value: '${analytics.rejectedBatches}',
                 subtitle: 'Rejected by Checkers',
                 icon: Icons.error_outline_rounded,
                 color: Colors.red,
+                onTap: () {
+                  setState(() => _statusFilter = 'REJECTED');
+                },
               ),
             ],
           ),
@@ -511,8 +525,11 @@ class _ManagerDisputeScreenState extends ConsumerState<ManagerDisputeScreen>
     required String subtitle,
     required IconData icon,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return Expanded(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
       child: GlassCard(
         child: Padding(
           padding: const EdgeInsets.all(16),

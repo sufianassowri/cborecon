@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:pluto_grid/pluto_grid.dart';
 import '../../../../core/widgets/responsive_shell.dart';
+import '../../../../core/widgets/responsive_row.dart';
 import '../../data/parsers/remote_excel_exporter.dart';
 import '../../domain/models/remote_dispute_memo_item.dart';
 import '../providers/remote_dispute_memo_provider.dart';
@@ -256,12 +257,11 @@ class _RemoteDisputeMemoPageState extends ConsumerState<RemoteDisputeMemoPage> {
   }
 
   Widget _buildFooter(RemoteDisputeMemoState state, String currentDate) {
-    return Row(
+    return ResponsiveRow(
       crossAxisAlignment: CrossAxisAlignment.start,
+      flexes: const [3, 2],
       children: [
-        Expanded(
-          flex: 3,
-          child: Column(
+        Column(
             children: [
               Row(
                 children: [
@@ -331,13 +331,9 @@ class _RemoteDisputeMemoPageState extends ConsumerState<RemoteDisputeMemoPage> {
               ),
             ],
           ),
-        ),
-        const SizedBox(width: 24),
-        Expanded(
-          flex: 2,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -352,33 +348,89 @@ class _RemoteDisputeMemoPageState extends ConsumerState<RemoteDisputeMemoPage> {
                 ],
               ),
               const SizedBox(height: 8),
-              TextField(
-                controller: _preparedByController,
-                onChanged: (val) {
-                  ref.read(remoteDisputeMemoProvider.notifier).updateAccounts(
-                    preparedBy: val,
-                  );
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Prepared By',
-                ),
-              ),
-              TextField(
-                controller: _checkedByController,
-                onChanged: (val) {
-                  ref.read(remoteDisputeMemoProvider.notifier).updateAccounts(
-                    checkedBy: val,
-                  );
-                },
-                decoration: const InputDecoration(
-                  labelText: 'Checked By',
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _preparedByController,
+                      onChanged: (val) => ref.read(remoteDisputeMemoProvider.notifier).updateAccounts(preparedBy: val),
+                      decoration: const InputDecoration(labelText: 'Prepared By'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _checkedByController,
+                      onChanged: (val) => ref.read(remoteDisputeMemoProvider.notifier).updateAccounts(checkedBy: val),
+                      decoration: const InputDecoration(labelText: 'Checked By'),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: (state.commissionRate * 100).toString(),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Commission Rate (%)'),
+                      onChanged: (val) {
+                        final rate = double.tryParse(val);
+                        if (rate != null) {
+                          ref.read(remoteDisputeMemoProvider.notifier).updateAccounts(commissionRate: rate / 100);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: (state.disasterRate * 100).toString(),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Disaster Rate (%)'),
+                      onChanged: (val) {
+                        final rate = double.tryParse(val);
+                        if (rate != null) {
+                          ref.read(remoteDisputeMemoProvider.notifier).updateAccounts(disasterRate: rate / 100);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: (state.vatRate * 100).toString(),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'VAT Rate (%)'),
+                      onChanged: (val) {
+                        final rate = double.tryParse(val);
+                        if (rate != null) {
+                          ref.read(remoteDisputeMemoProvider.notifier).updateAccounts(vatRate: rate / 100);
+                        }
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      initialValue: (state.otherCommissionRate * 100).toString(),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(labelText: 'Other Comm Rate (%)'),
+                      onChanged: (val) {
+                        final rate = double.tryParse(val);
+                        if (rate != null) {
+                          ref.read(remoteDisputeMemoProvider.notifier).updateAccounts(otherCommissionRate: rate / 100);
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
               Text('Date: $currentDate'),
             ],
           ),
-        ),
       ],
     );
   }
@@ -418,6 +470,12 @@ class _RemoteDisputeMemoPageState extends ConsumerState<RemoteDisputeMemoPage> {
       PlutoColumn(
         title: 'Acquirer Bank',
         field: 'acquirer',
+        type: PlutoColumnType.text(),
+        renderer: (ctx) => _cellRenderer(ctx),
+      ),
+      PlutoColumn(
+        title: 'Branch',
+        field: 'branch',
         type: PlutoColumnType.text(),
         renderer: (ctx) => _cellRenderer(ctx),
       ),
@@ -482,6 +540,7 @@ class _RemoteDisputeMemoPageState extends ConsumerState<RemoteDisputeMemoPage> {
         'account': PlutoCell(value: item.customerAccount),
         'name': PlutoCell(value: item.customerName),
         'acquirer': PlutoCell(value: item.acquirerBank),
+        'branch': PlutoCell(value: item.branch),
         'vat_acc': PlutoCell(value: item.debitVatAcc),
         'amount': PlutoCell(value: item.amount),
         'pl': PlutoCell(value: item.pl62174),
@@ -501,6 +560,7 @@ class _RemoteDisputeMemoPageState extends ConsumerState<RemoteDisputeMemoPage> {
       'account': PlutoCell(value: ''),
       'name': PlutoCell(value: ''),
       'acquirer': PlutoCell(value: ''),
+      'branch': PlutoCell(value: ''),
       'vat_acc': PlutoCell(value: ''),
       'amount': PlutoCell(value: summary.totalAmount),
       'pl': PlutoCell(value: summary.totalPl62174),

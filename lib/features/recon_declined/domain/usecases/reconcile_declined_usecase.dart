@@ -110,8 +110,11 @@ class ReconcileDeclinedUseCase {
     final Map<String, List<DeclinedRawRecord>> declinedGroups = {};
 
     for (final row in declinedData) {
-      // Prioritize CARD.ACC.ID, CREDIT.ACCT.NO, or Row Labels as required
+      // Prioritize CREDIT.ACCT.NO, CARD.ACC.ID, or Row Labels as required
       dynamic rawCardAccId = _getVal(row, [
+        'CREDIT.ACCT.NO',
+        'CREDIT_ACCT_NO',
+        'CREDIT.ACCT',
         'CARD.ACC.ID',
         'CARD_ACC_ID',
         'CARD.ACC',
@@ -124,9 +127,6 @@ class ReconcileDeclinedUseCase {
         'Row Labels',
         'ROW LABELS',
         'RowLabels',
-        'CREDIT.ACCT.NO',
-        'CREDIT_ACCT_NO',
-        'CREDIT.ACCT',
         'DEBIT.ACCT.NO',
         'COL_0',
       ]);

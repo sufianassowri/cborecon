@@ -31,6 +31,7 @@ class _ReconDeclinedDashboardState extends State<ReconDeclinedDashboard> {
   List<Map<String, dynamic>> _declinedRaw = [];
   String? _excessFileName;
   String? _declinedFileName;
+  PlutoGridStateManager? _stateManager;
 
   ReconDeclinedResult? _result;
   bool _isProcessing = false;
@@ -45,7 +46,7 @@ class _ReconDeclinedDashboardState extends State<ReconDeclinedDashboard> {
       context,
       moduleTitle: 'Declined Transaction Reconciliation Guide',
       modulePurpose:
-          'Automates settlement debit calculation across Excess GL accounts and Cash at ATM accounts for declined transactions. Derives accounts based on CARD.ACC.ID hardware classification (NCR & CRM) and models the exact debit split.',
+          'Automates settlement debit calculation across Excess GL accounts and Cash at ATM accounts for declined transactions. Derives accounts based on CREDIT.ACCT.NO classification (NCR & CRM) and models the exact debit split.',
       steps: const [
         ReconStepGuide(
           step: 1,
@@ -79,7 +80,7 @@ class _ReconDeclinedDashboardState extends State<ReconDeclinedDashboard> {
         ),
       ],
       tips: const [
-        'Excess account derivation strictly depends on CARD.ACC.ID (not CREDIT.ACCT.NO).',
+        'Excess account derivation strictly depends on CREDIT.ACCT.NO.',
         'Both Pivot format (aggregated) and raw detail format are automatically detected.',
         'Negative or zero excess balances automatically re-route 100% of debit to the Cash at ATM account.',
         'Export multi-sheet Excel reports containing matched settlements, excess-only, and declined-only records.',
@@ -931,6 +932,22 @@ class _ReconDeclinedDashboardState extends State<ReconDeclinedDashboard> {
       title: 'Declined Transaction Reconciliation',
       subtitle: 'Excess & Cash at ATM Multi-Hardware Settlement Engine',
       actions: [
+        if (_hasExecuted || _excessFileName != null || _declinedFileName != null)
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, color: CboColors.alertRed),
+            tooltip: 'Reset Engine',
+            onPressed: () {
+              setState(() {
+                _excessRaw.clear();
+                _declinedRaw.clear();
+                _excessFileName = null;
+                _declinedFileName = null;
+                _result = null;
+                _hasExecuted = false;
+                _stateManager = null;
+              });
+            },
+          ),
         IconButton(
           icon: const Icon(Icons.help_outline_rounded, color: CboColors.slateMedium),
           tooltip: 'Calculation Guide',
@@ -1155,6 +1172,9 @@ class _ReconDeclinedDashboardState extends State<ReconDeclinedDashboard> {
                   child: PlutoGrid(
                     columns: _buildColumns(),
                     rows: _buildRows(),
+                    onLoaded: (PlutoGridOnLoadedEvent event) {
+                      _stateManager = event.stateManager;
+                    },
                     configuration: const PlutoGridConfiguration(
                       style: PlutoGridStyleConfig(
                         gridBorderColor: CboColors.cardBorder,
@@ -1177,7 +1197,13 @@ class _ReconDeclinedDashboardState extends State<ReconDeclinedDashboard> {
     final isSelected = _selectedFilter == filter;
     return Expanded(
       child: InkWell(
-        onTap: () => setState(() => _selectedFilter = filter),
+        onTap: () {
+          setState(() => _selectedFilter = filter);
+          if (_stateManager != null) {
+            _stateManager!.refRows.clear();
+            _stateManager!.appendRows(_buildRows());
+          }
+        },
         borderRadius: BorderRadius.circular(10),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 12),

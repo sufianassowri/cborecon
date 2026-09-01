@@ -70,6 +70,10 @@ class DisputeMemoParser {
 
   static DisputeMemoSummary generateMemoData({
     required List<Map<String, dynamic>> matchedData,
+    double commissionRate = 0.005,
+    double disasterRate = 0.05,
+    double vatRate = 0.15,
+    double otherCommissionRate = 0.0,
   }) {
     List<DisputeMemoItem> items = [];
 
@@ -102,6 +106,10 @@ class DisputeMemoParser {
         investigationStatus: row['Investigation Status']?.toString() ?? '',
         requestedDate: row['Requested Date']?.toString() ?? '',
         assignedDate: row['Assigned Date']?.toString() ?? '',
+        commissionRate: commissionRate,
+        disasterRate: disasterRate,
+        vatRate: vatRate,
+        otherCommissionRate: otherCommissionRate,
       );
 
       items.add(item);

@@ -10,11 +10,11 @@ class Transactions extends Table {
   RealColumn get amount => real()();
   TextColumn get terminalId => text().nullable()();
   IntColumn get status => integer().withDefault(const Constant(0))();
+  
 }
 @DriftDatabase(tables: [Transactions])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
-
   @override
   int get schemaVersion => 1;
 

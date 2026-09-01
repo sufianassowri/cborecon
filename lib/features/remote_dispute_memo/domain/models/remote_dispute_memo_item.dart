@@ -34,6 +34,11 @@ class RemoteDisputeMemoItem {
   final String requestedDate;
   final String assignedDate;
 
+  final double commissionRate;
+  final double disasterRate;
+  final double vatRate;
+  final double otherCommissionRate;
+
   RemoteDisputeMemoItem({
     this.id,
     required this.transRef,
@@ -60,34 +65,28 @@ class RemoteDisputeMemoItem {
     this.investigationStatus = '',
     this.requestedDate = '',
     this.assignedDate = '',
+    this.commissionRate = 0.006,
+    this.disasterRate = 0.05,
+    this.vatRate = 0.15,
+    this.otherCommissionRate = 0.0,
   });
 
   // Business Logic Calculations
 
-  /// Calculates PL Commission (COM) for Remote On-Us:
-  /// - on/after May 22, 2026: 0.6% (0.006)
-  /// - before May 22, 2026: 0.5% (0.005)
-  double get pl62174 {
-    double rate = 0.005;
+  /// Calculates PL Commission (COM) for Remote On-Us based on dynamic input
+  double get pl62174 => _roundUp(amount * commissionRate, 2);
 
-    final parsedDate = _parseTransactionDate(transactionDate);
-    final cutoffDate = DateTime(2026, 5, 22);
+  /// Calculates Disaster / EDRRF (DIS)
+  double get edrrfAmount => _roundUp(pl62174 * disasterRate, 2);
 
-    if (parsedDate != null && !parsedDate.isBefore(cutoffDate)) {
-      rate = 0.006;
-    }
+  /// Calculates VAT
+  double get vatAmount => _roundUp(pl62174 * vatRate, 2);
 
-    return _roundUp(amount * rate, 2);
-  }
-
-  /// Calculates Disaster / EDRRF (DIS): =ROUNDUP(0.05 * COM, 2)
-  double get edrrfAmount => _roundUp(pl62174 * 0.05, 2);
-
-  /// Calculates VAT: =ROUNDUP(0.15 * COM, 2)
-  double get vatAmount => _roundUp(pl62174 * 0.15, 2);
+  /// Calculates Other Commission
+  double get otherCommissionAmount => _roundUp(pl62174 * otherCommissionRate, 2);
 
   /// Calculates Total:
-  double get total => _roundUp(amount + edrrfAmount + vatAmount + pl62174, 2);
+  double get total => _roundUp(amount + edrrfAmount + vatAmount + pl62174 + otherCommissionAmount, 2);
 
   /// Implements Excel formula: =REPLACE(B2, 1, 4, "ETB17212000")
   String get vatAccount {

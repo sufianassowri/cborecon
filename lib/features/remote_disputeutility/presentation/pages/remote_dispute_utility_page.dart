@@ -56,6 +56,13 @@ class RemoteDisputeUtilityPage extends ConsumerWidget {
       subtitle: 'Multi-Criteria Dynamic Header Mapping & Batch Reconciliation Engine',
       actions: [
         IconButton(
+          icon: const Icon(Icons.refresh_rounded, color: CboColors.alertRed),
+          tooltip: 'Reset Engine',
+          onPressed: () {
+             ref.invalidate(remoteDisputeProvider);
+          },
+        ),
+        IconButton(
           icon: const Icon(Icons.help_outline_rounded, color: CboColors.primaryCyan),
           tooltip: 'Operation Guide',
           onPressed: () => _showGuide(context),

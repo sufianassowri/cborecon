@@ -22,6 +22,7 @@ class RemoteExcelExporter {
       'CustomerAccount',
       'Customer Name',
       'Acquirer Bank',
+      'Branch',
       'VAT Account',
       'Amount',
       'Com_amount',
@@ -44,6 +45,7 @@ class RemoteExcelExporter {
         TextCellValue(item.customerAccount),
         TextCellValue(item.customerName),
         TextCellValue(item.acquirerBank),
+        TextCellValue(item.branch),
         TextCellValue(item.debitVatAcc),
         DoubleCellValue(item.amount),
         DoubleCellValue(item.pl62174),
@@ -59,6 +61,7 @@ class RemoteExcelExporter {
     // 3. Write Summary Total Row
     final List<CellValue> totalRow = [
       TextCellValue('TOTAL'),
+      TextCellValue(''),
       TextCellValue(''),
       TextCellValue(''),
       TextCellValue(''),

@@ -103,19 +103,7 @@ class IpsTriangularNotifier extends StateNotifier<IpsTriangularState> {
       final List<PlutoRow> pRows = [];
       for (final p in result.pairedRows) {
         final bool isMatched = p['isMatched'] as bool;
-        final bool isEtValid = p['isEtValid'] as bool? ?? false;
-        final bool isCrValid = p['isCrValid'] as bool? ?? false;
-        
-        String statusLabel = 'OK';
-        if (!isMatched) {
-          if (!isEtValid && !isCrValid) {
-            statusLabel = 'MISSING_IN_BOTH';
-          } else if (!isEtValid) {
-            statusLabel = 'MISSING_IN_SETTLE';
-          } else if (!isCrValid) {
-            statusLabel = 'MISSING_IN_GL';
-          }
-        }
+        final String statusLabel = p['statusLabel'] as String? ?? (isMatched ? 'OK' : 'MISMATCH');
 
         final ecRow = p['ecRow'] as List<dynamic>;
         final etRow = p['etRow'] as List<dynamic>?;

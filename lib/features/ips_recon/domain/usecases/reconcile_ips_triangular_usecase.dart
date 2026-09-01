@@ -90,16 +90,30 @@ class ReconcileIpsTriangularUseCase {
 
       final bool isFullyMatched = isEtValid && isCrValid;
 
+      String statusLabel = 'OK';
+      if (!isFullyMatched) {
+        if (etMatch == null && crMatch == null) {
+          statusLabel = 'MISSING_IN_BOTH';
+        } else if (etMatch == null) {
+          statusLabel = 'MISSING_IN_SETTLE';
+        } else if (crMatch == null) {
+          statusLabel = 'MISSING_IN_REPORT';
+        } else {
+          statusLabel = 'MISMATCH_AMOUNT';
+        }
+      }
+
       if (isFullyMatched) {
         totalMatchedAmount += amt;
         matchedCount++;
       } else {
         unmatchedCount++;
-        unmatchedList.add({'reference': bankRef, 'amount': amt});
+        unmatchedList.add({'reference': bankRef, 'amount': amt, 'status': statusLabel});
       }
 
       pairedRows.add({
         'isMatched': isFullyMatched,
+        'statusLabel': statusLabel,
         'isEtValid': isEtValid,
         'isCrValid': isCrValid,
         'key': bankRef,

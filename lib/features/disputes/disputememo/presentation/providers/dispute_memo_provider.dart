@@ -1,13 +1,10 @@
 import 'package:flutter_riverpod/legacy.dart';
 import '../../domain/models/dispute_memo_item.dart';
-import '../../domain/models/memo_format_type.dart';
 import '../../data/datasources/dispute_memo_parser.dart';
 
 class DisputeMemoState {
   final String? atmEnqPath;
   final String? disputeReportPath;
-
-  final MemoFormatType memoFormat;
   final DisputeMemoSummary? summary;
   final bool isLoading;
   final String? error;
@@ -19,10 +16,15 @@ class DisputeMemoState {
   final String preparedBy;
   final String checkedBy;
 
+  // Rate Input Fields
+  final double commissionRate;
+  final double disasterRate;
+  final double vatRate;
+  final double otherCommissionRate;
+
   DisputeMemoState({
     this.atmEnqPath,
     this.disputeReportPath,
-    this.memoFormat = MemoFormatType.fahmi,
     this.summary,
     this.isLoading = false,
     this.error,
@@ -31,13 +33,15 @@ class DisputeMemoState {
     this.disasterRiskAcc = 'ETB1759500010001',
     this.preparedBy = 'Sufian Aliyyii kedir',
     this.checkedBy = 'Shemsia Hamid Aman',
+    this.commissionRate = 0.005,
+    this.disasterRate = 0.05,
+    this.vatRate = 0.15,
+    this.otherCommissionRate = 0.0,
   });
 
   DisputeMemoState copyWith({
     String? atmEnqPath,
     String? disputeReportPath,
-
-    MemoFormatType? memoFormat,
     DisputeMemoSummary? summary,
     bool? isLoading,
     String? error,
@@ -46,12 +50,14 @@ class DisputeMemoState {
     String? disasterRiskAcc,
     String? preparedBy,
     String? checkedBy,
+    double? commissionRate,
+    double? disasterRate,
+    double? vatRate,
+    double? otherCommissionRate,
   }) {
     return DisputeMemoState(
       atmEnqPath: atmEnqPath ?? this.atmEnqPath,
       disputeReportPath: disputeReportPath ?? this.disputeReportPath,
-
-      memoFormat: memoFormat ?? this.memoFormat,
       summary: summary ?? this.summary,
       isLoading: isLoading ?? this.isLoading,
       error: error,
@@ -60,6 +66,10 @@ class DisputeMemoState {
       disasterRiskAcc: disasterRiskAcc ?? this.disasterRiskAcc,
       preparedBy: preparedBy ?? this.preparedBy,
       checkedBy: checkedBy ?? this.checkedBy,
+      commissionRate: commissionRate ?? this.commissionRate,
+      disasterRate: disasterRate ?? this.disasterRate,
+      vatRate: vatRate ?? this.vatRate,
+      otherCommissionRate: otherCommissionRate ?? this.otherCommissionRate,
     );
   }
 }
@@ -77,17 +87,16 @@ class DisputeMemoNotifier extends StateNotifier<DisputeMemoState> {
     _process();
   }
 
-
-  void setMemoFormat(MemoFormatType format) {
-    state = state.copyWith(memoFormat: format);
-  }
-
   void updateAccounts({
     String? disputedAtmAcc,
     String? commPayableAcc,
     String? disasterRiskAcc,
     String? preparedBy,
     String? checkedBy,
+    double? commissionRate,
+    double? disasterRate,
+    double? vatRate,
+    double? otherCommissionRate,
   }) {
     state = state.copyWith(
       disputedAtmAcc: disputedAtmAcc,
@@ -95,7 +104,14 @@ class DisputeMemoNotifier extends StateNotifier<DisputeMemoState> {
       disasterRiskAcc: disasterRiskAcc,
       preparedBy: preparedBy,
       checkedBy: checkedBy,
+      commissionRate: commissionRate,
+      disasterRate: disasterRate,
+      vatRate: vatRate,
+      otherCommissionRate: otherCommissionRate,
     );
+    if (state.atmEnqPath != null && state.disputeReportPath != null && state.summary != null) {
+      _process();
+    }
   }
 
   Future<void> _process() async {
@@ -113,6 +129,10 @@ class DisputeMemoNotifier extends StateNotifier<DisputeMemoState> {
 
       final summary = DisputeMemoParser.generateMemoData(
         matchedData: matched,
+        commissionRate: state.commissionRate,
+        disasterRate: state.disasterRate,
+        vatRate: state.vatRate,
+        otherCommissionRate: state.otherCommissionRate,
       );
 
       state = state.copyWith(summary: summary, isLoading: false);
@@ -121,7 +141,8 @@ class DisputeMemoNotifier extends StateNotifier<DisputeMemoState> {
     }
   }
 }
+
 final disputeMemoProvider =
-StateNotifierProvider<DisputeMemoNotifier, DisputeMemoState>((ref) {
+    StateNotifierProvider<DisputeMemoNotifier, DisputeMemoState>((ref) {
   return DisputeMemoNotifier();
 });

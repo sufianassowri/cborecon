@@ -2,7 +2,6 @@ import 'dart:io';
 import 'package:excel/excel.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:intl/intl.dart';
-import '../../domain/models/memo_format_type.dart';
 import '../../presentation/providers/dispute_memo_provider.dart';
 
 class ExcelExporter {
@@ -11,136 +10,69 @@ class ExcelExporter {
   }) async {
     final summary = state.summary;
     if (summary == null) return null;
-    final format = state.memoFormat;
+    
     final currentDate = DateFormat('dd/MM/yyyy').format(DateTime.now());
     final excel = Excel.createExcel();
     final Sheet sheet = excel[excel.getDefaultSheet()!];
-    List<String> headers = [];
-
-    if (format == MemoFormatType.fahmi) {
-      headers = [
-        'CustomerName',
-        'PAN',
-        'Transaction Date',
-        'branch',
-        'TRANSREFERANCE',
-        'DEBIT ATM Acc',
-        'DEBIT VAT ACC',
-        'DEBIT E.D.F Acc',
-        'Customer_Account',
-        'amount',
-        '62174',
-        'VAT_Amount',
-        'E.D.Amount',
-        'total',
-        'RRN',
-      ];
-    } else {
-      // Geda Format
-      headers = [
-        'TRANSREFERANCE',
-        'Branch',
-        'CustomerAccount',
-        'amount',
-        'CustomerName',
-        'PAN',
-        'Transaction Date',
-        'EDRRF Acount',
-        'EDRRF amount',
-        'DR ACOUNT',
-        'vat acount',
-        'vat amount',
-        'pl(62174)',
-        'total',
-        'RETRIEVAL.REF.NO',
-      ];
-    }
+    
+    final List<String> headers = [
+      'TRANS_REFERANCE',
+      'PAN',
+      'Transaction Date',
+      'CustomerAccount',
+      'Customer Name',
+      'Acquirer Bank',
+      'Branch',
+      'VAT Account',
+      'Amount',
+      'Com_amount',
+      'Disaster commission',
+      'VAT amount',
+      'TOTAL',
+      'RRN',
+    ];
 
     // 1. Write headers
     sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
 
     // 2. Write Data Rows
     for (var item in summary.items) {
-      List<CellValue> row = [];
-      if (format == MemoFormatType.fahmi) {
-        row = [
-          TextCellValue(item.customerName),
-          TextCellValue(item.pan),
-          TextCellValue(item.transactionDate),
-          TextCellValue(item.branch),
-          TextCellValue(item.transRef),
-          TextCellValue(item.debitAtmAcc),
-          TextCellValue(item.debitVatAcc),
-          TextCellValue(item.debitEdfAcc),
-          TextCellValue(item.customerAccount),
-          DoubleCellValue(item.amount),
-          DoubleCellValue(item.pl62174),
-          DoubleCellValue(item.vatAmount),
-          DoubleCellValue(item.edrrfAmount),
-          DoubleCellValue(item.total),
-          TextCellValue(item.rrn),
-        ];
-      } else {
-        row = [
-          TextCellValue(item.transRef),
-          TextCellValue(item.branch),
-          TextCellValue(item.customerAccount),
-          DoubleCellValue(item.amount),
-          TextCellValue(item.customerName),
-          TextCellValue(item.pan),
-          TextCellValue(item.transactionDate),
-          TextCellValue(item.debitEdfAcc),
-          DoubleCellValue(item.edrrfAmount),
-          TextCellValue(item.debitAtmAcc),
-          TextCellValue(item.debitVatAcc),
-          DoubleCellValue(item.vatAmount),
-          DoubleCellValue(item.pl62174),
-          DoubleCellValue(item.total),
-          TextCellValue(item.rrn),
-        ];
-      }
+      final List<CellValue> row = [
+        TextCellValue(item.transRef),
+        TextCellValue(item.pan),
+        TextCellValue(item.transactionDate),
+        TextCellValue(item.customerAccount),
+        TextCellValue(item.customerName),
+        TextCellValue(item.acquirerBank),
+        TextCellValue(item.branch),
+        TextCellValue(item.debitVatAcc),
+        DoubleCellValue(item.amount),
+        DoubleCellValue(item.pl62174),
+        DoubleCellValue(item.edrrfAmount),
+        DoubleCellValue(item.vatAmount),
+        DoubleCellValue(item.total),
+        TextCellValue(item.rrn),
+      ];
       sheet.appendRow(row);
     }
 
     // 3. Write Summary Total Row
-    List<CellValue> totalRow = [];
-    if (format == MemoFormatType.fahmi) {
-      totalRow = [
-        TextCellValue('TOTAL'),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        DoubleCellValue(summary.totalAmount),
-        DoubleCellValue(summary.totalPl62174),
-        DoubleCellValue(summary.totalVatAmount),
-        DoubleCellValue(summary.totalEdrfAmount),
-        DoubleCellValue(summary.grandTotal),
-        TextCellValue(''),
-      ];
-    } else {
-      totalRow = [
-        TextCellValue('TOTAL'),
-        TextCellValue(''),
-        TextCellValue(''),
-        DoubleCellValue(summary.totalAmount),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        TextCellValue(''),
-        DoubleCellValue(summary.totalEdrfAmount),
-        TextCellValue(''),
-        TextCellValue(''),
-        DoubleCellValue(summary.totalVatAmount),
-        DoubleCellValue(summary.totalPl62174),
-        DoubleCellValue(summary.grandTotal),
-        TextCellValue(''),
-      ];
-    }
+    final List<CellValue> totalRow = [
+      TextCellValue('TOTAL'),
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue(''),
+      TextCellValue(''),
+      DoubleCellValue(summary.totalAmount),
+      DoubleCellValue(summary.totalPl62174),
+      DoubleCellValue(summary.totalEdrfAmount),
+      DoubleCellValue(summary.totalVatAmount),
+      DoubleCellValue(summary.grandTotal),
+      TextCellValue(''), 
+    ];
     sheet.appendRow(totalRow);
 
     // Spacer rows
